@@ -203,6 +203,40 @@ section {
   color: var(--secondary-color);
 }
 
+/* Hours Section */
+#hours {
+  background-color: var(--surface-color);
+}
+
+.hours-list {
+  list-style: none;
+  max-width: 400px;
+  margin: 2rem auto 0;
+  padding: 1rem;
+  border: 1px solid #333;
+  border-radius: 5px;
+}
+
+.hours-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.hours-list li:last-child {
+  border-bottom: none;
+}
+
+.hours-list .day {
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+.hours-list .time {
+  color: var(--text-color-secondary);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   h1 { font-size: 2.5rem; }

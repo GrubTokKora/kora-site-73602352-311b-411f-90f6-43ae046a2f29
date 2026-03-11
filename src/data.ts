@@ -1,6 +1,6 @@
 export const data = {
   "business": {
-    "name": "The Pie Pizzeria-Harsh",
+    "name": "The Pie Pizzeria - South Salt Lake",
     "description": "Branch of a casual local chain delivering thick build-your-own & specialty pizzas & breadsticks.",
     "address": "3321 S 200 E, South Salt Lake, UT 84115, USA",
     "website": "http://www.thepie.com/"
@@ -8,9 +8,10 @@ export const data = {
   "_schema": "static_site_backbone_v1",
   "_version": 1,
   "hours": {
-    "monday": "Closed",
+    "monday": "9:00 AM – 5:00 PM",
     "tuesday": "9:00 AM – 5:00 PM",
     "wednesday": "9:00 AM – 5:00 PM",
+    "thursday": "9:00 AM – 5:00 PM",
     "friday": "9:00 AM – 5:00 PM",
     "saturday": "9:00 AM – 5:00 PM",
     "sunday": "9:00 AM – 5:00 PM"
