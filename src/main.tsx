@@ -1,32 +1,29 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import App from './App.tsx';
+import { BUSINESS_ID } from './App.tsx';
 
-// Read the business identifier injected into the root element.
-// AI-generated components can rely on this value being present.
-const rootEl = document.getElementById('root')
-const BUSINESS_ID =
-  rootEl?.getAttribute('data-kora-business-id') ?? '__KORA_BUSINESS_ID__'
+const rootEl = document.getElementById('root');
+
+if (!rootEl) {
+  throw new Error("Root element with id 'root' not found in the document.");
+}
 
 declare global {
   interface Window {
     KORA_SITE?: {
-      businessId: string
-    }
-    }
+      businessId: string;
+    };
   }
-
-// Expose stable globals for any runtime code that needs them.
-// The backend is responsible for ensuring window.KORA_CONFIG.apiBaseUrl is set
-// to the correct public API base URL when serving the site. If it is missing,
-// fall back to a safe default.
-window.KORA_SITE = {
-  businessId: BUSINESS_ID,
 }
 
-createRoot(rootEl as HTMLElement).render(
+window.KORA_SITE = {
+  businessId: BUSINESS_ID,
+};
+
+createRoot(rootEl).render(
   <StrictMode>
     <App />
   </StrictMode>,
-)
+);
