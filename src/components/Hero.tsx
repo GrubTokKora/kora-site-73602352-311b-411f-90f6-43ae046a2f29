@@ -1,14 +1,16 @@
 type HeroProps = {
   title: string;
   subtitle: string;
+  ctaLabel: string;
+  ctaUrl: string;
 };
 
-function Hero({ title, subtitle }: HeroProps) {
+function Hero({ title, subtitle, ctaLabel, ctaUrl }: HeroProps) {
   return (
     <section className="hero">
       <h1>{title}</h1>
       <p>{subtitle}</p>
-      <a href="#menu" className="btn">View Our Menu</a>
+      <a href={ctaUrl} className="btn">{ctaLabel}</a>
     </section>
   );
 }
