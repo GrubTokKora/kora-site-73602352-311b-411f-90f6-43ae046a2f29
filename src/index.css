@@ -203,6 +203,61 @@ section {
   color: var(--secondary-color);
 }
 
+/* Menu Section */
+#menu {
+  background-color: var(--background-color);
+}
+
+.menu-category {
+  margin-bottom: 3rem;
+}
+
+.menu-category h3 {
+  border-bottom: 2px solid var(--primary-color);
+  padding-bottom: 0.5rem;
+  margin-bottom: 2rem;
+  display: inline-block;
+}
+
+.menu-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.menu-item-card {
+  background-color: var(--surface-color);
+  padding: 1.5rem;
+  border-radius: 5px;
+  border: 1px solid #2a2a2a;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.menu-item-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+}
+
+.menu-item-card h4 {
+  font-family: var(--font-family-headings);
+  color: var(--secondary-color);
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.menu-item-description {
+  color: var(--text-color-secondary);
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.menu-item-price {
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: var(--text-color);
+  text-align: right;
+}
+
 /* Hours Section */
 #hours {
   background-color: var(--surface-color);

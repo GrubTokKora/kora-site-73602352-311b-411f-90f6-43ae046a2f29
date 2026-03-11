@@ -1,6 +1,6 @@
 export const data = {
   "business": {
-    "name": "The Pie Pizzeria - South Salt Lake",
+    "name": "The Pie Pizzeria-Harsh",
     "description": "Branch of a casual local chain delivering thick build-your-own & specialty pizzas & breadsticks.",
     "address": "3321 S 200 E, South Salt Lake, UT 84115, USA",
     "website": "http://www.thepie.com/"
@@ -23,7 +23,15 @@ export const data = {
     "backgroundImages": [],
     "backgroundVideo": ""
   },
-  "menu": [],
+  "menu": [
+    {
+      "id": "Item-1",
+      "name": "Classic Pancakes",
+      "description": "Fluffy",
+      "price": "8.99",
+      "category": "Breakfast"
+    }
+  ],
   "gallery": [],
   "contact": {
     "address": "",

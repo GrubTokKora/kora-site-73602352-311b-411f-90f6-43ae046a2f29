@@ -12,7 +12,7 @@ import { data } from './data';
 export const BUSINESS_ID = "73602352-311b-411f-90f6-43ae046a2f29";
 
 function App() {
-  const { business, hero, hours, contact, actions } = data;
+  const { business, hero, hours, contact, actions, menu } = data;
 
   useEffect(() => {
     document.title = business.name;
@@ -43,7 +43,7 @@ function App() {
         <About 
           description={business.description}
         />
-        <Menu website={business.website} />
+        <Menu menu={menu} />
         <Hours hours={hours} />
         <Contact address={contactAddress} phone={contactPhone} />
       </main>
