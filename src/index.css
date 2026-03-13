@@ -294,7 +294,7 @@ section {
 
 /* Gallery Section */
 #gallery {
-  background-color: var(--background-color);
+  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://deveusblob.blob.core.windows.net/kora-business-images/user-media/73602352-311b-411f-90f6-43ae046a2f29/10ba98a4-a410-4015-99d9-701074e2e5bc/1773432755_l25rhu.jpeg') no-repeat center center/cover;
 }
 
 .gallery-grid {
