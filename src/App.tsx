@@ -3,6 +3,7 @@ import Header from './components/Header';
 import Hero from './components/Hero';
 import About from './components/About';
 import Menu from './components/Menu';
+import Gallery from './components/Gallery';
 import Hours from './components/Hours';
 import Contact from './components/Contact';
 import Footer from './components/Footer';
@@ -12,7 +13,7 @@ import { data } from './data';
 export const BUSINESS_ID = "73602352-311b-411f-90f6-43ae046a2f29";
 
 function App() {
-  const { business, hero, hours, contact, actions, menu } = data;
+  const { business, hero, hours, contact, actions, menu, gallery } = data;
 
   useEffect(() => {
     document.title = business.name;
@@ -44,6 +45,7 @@ function App() {
           description={business.description}
         />
         <Menu menu={menu} />
+        <Gallery images={gallery} />
         <Hours hours={hours} />
         <Contact address={contactAddress} phone={contactPhone} />
       </main>

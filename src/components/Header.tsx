@@ -11,6 +11,7 @@ function Header({ businessName }: HeaderProps) {
           <ul className="nav-links">
             <li><a href="#about">About</a></li>
             <li><a href="#menu">Menu</a></li>
+            <li><a href="#gallery">Gallery</a></li>
             <li><a href="#hours">Hours</a></li>
             <li><a href="#contact">Contact</a></li>
           </ul>
