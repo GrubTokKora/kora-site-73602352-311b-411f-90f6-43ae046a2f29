@@ -1,6 +1,6 @@
 export const data = {
   "business": {
-    "name": "The Pie Pizzeria - Lovey",
+    "name": "Pie Pizzeria",
     "description": "Branch of a casual local chain delivering thick build-your-own & specialty pizzas & breadsticks.",
     "address": "3321 S 200 E, South Salt Lake, UT 84115, USA",
     "website": "http://www.thepie.com/"
