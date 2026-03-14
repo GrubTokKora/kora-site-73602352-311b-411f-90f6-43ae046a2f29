@@ -1,9 +1,10 @@
 export const data = {
   "business": {
-    "name": "pie pizzeria - baby",
+    "name": "The Pie Pizzeria - South Salt Lake",
     "description": "Branch of a casual local chain delivering thick build-your-own & specialty pizzas & breadsticks.",
     "address": "3321 S 200 E, South Salt Lake, UT 84115, USA",
-    "website": "http://www.thepie.com/"
+    "website": "http://www.thepie.com/",
+    "id": "73602352-311b-411f-90f6-43ae046a2f29"
   },
   "_schema": "static_site_backbone_v1",
   "_version": 1,
@@ -17,7 +18,7 @@ export const data = {
     "sunday": "9:00 AM – 5:00 PM"
   },
   "hero": {
-    "title": "",
+    "title": "Pie Pizzeria",
     "subtitle": "",
     "backgroundImage": "",
     "backgroundImages": [],
@@ -85,5 +86,8 @@ export const data = {
       "about",
       "contact"
     ]
+  },
+  "api": {
+    "baseUrl": "http://localhost:8000"
   }
 };

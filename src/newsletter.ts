@@ -1,3 +1,5 @@
+import { data } from './data';
+
 // Core helper for subscribing a visitor to a restaurant's newsletter.
 // UI components can call this function and pass in form data.
 
@@ -20,8 +22,8 @@ export type NewsletterSubscribeResult = {
   channels?: string[]
 }
 
-// Base URL for the public API. Hardcoded to dev environment for now.
-// const API_BASE_URL = 'https://kora-agent.quseappdev.com/api'
+// The API base URL is now dynamic, read from our site's data backbone.
+const API_BASE_URL = data.api?.baseUrl || 'http://localhost:8000';
 
 export async function subscribeToNewsletter(
   payload: NewsletterSubscribePayload,
@@ -56,7 +58,7 @@ export async function subscribeToNewsletter(
     source: 'dynamic_website_widget',
   }
 
-  const resp = await fetch(`https://kora-agent.quseappdev.com/api/v1/public/newsletter/subscribe`, {
+  const resp = await fetch(`${API_BASE_URL}/api/v1/public/newsletter/subscribe`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -82,4 +84,3 @@ export async function subscribeToNewsletter(
     channels: json.channels ?? undefined,
   }
 }
-
