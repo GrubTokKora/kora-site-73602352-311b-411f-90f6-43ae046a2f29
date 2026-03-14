@@ -58,8 +58,8 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Notify Kora on deploy success
-        if: ${{ github.event.inputs.notifyBaseUrl != '' && github.event.inputs.conversationId != '' && github.event.inputs.notifyEmail != '' }}
+        if: ${{ github.event.inputs.notifyBaseUrl != '' && github.event.inputs.notifyEmail != '' }}
         run: |
-          NOTIFY_URL="${{ github.event.inputs.notifyBaseUrl }}/api/v1/chats/${{ github.event.inputs.conversationId }}/notify/${{ github.event.inputs.notifyEmail }}?environment=${{ github.event.inputs.cloudflareEnvironment }}"
+          NOTIFY_URL="${{ github.event.inputs.notifyBaseUrl }}/v1/chats/${{ github.event.inputs.conversationId }}/notify/${{ github.event.inputs.notifyEmail }}?environment=${{ github.event.inputs.cloudflareEnvironment }}"
           echo "Calling deploy-complete notify..."
           curl -sS -o /dev/null -w "%{http_code}" -X GET "$NOTIFY_URL" || true
