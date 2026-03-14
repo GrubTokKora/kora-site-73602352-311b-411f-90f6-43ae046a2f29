@@ -1,6 +1,6 @@
 export const data = {
   "business": {
-    "name": "The Pie Burgeria- North Salt",
+    "name": "The Pie Pizzeria - South Salt Lake",
     "description": "Branch of a casual local chain delivering thick build-your-own & specialty pizzas & breadsticks.",
     "address": "3321 S 200 E, South Salt Lake, UT 84115, USA",
     "website": "http://www.thepie.com/",
@@ -18,7 +18,7 @@ export const data = {
     "sunday": "9:00 AM – 5:00 PM"
   },
   "hero": {
-    "title": "The Pie Burgeria",
+    "title": "The Pie Pizzeria - South Salt Lake",
     "subtitle": "",
     "backgroundImage": "",
     "backgroundImages": [],
