@@ -35,7 +35,7 @@ export default function Hero({ businessId }: HeroProps) {
           alt="Delicious pizza"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-stone-950/80 via-stone-950/60 to-stone-950" />
+        <div className="absolute inset-0 bg-linear-gradient(to bottom, rgba(18, 24, 31, 0.8), rgba(18, 24, 31, 0.6), rgba(18, 24, 31, 1))" />
       </div>
 
       {/* Content */}
