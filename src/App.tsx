@@ -1,8 +1,54 @@
-// This component is just a placeholder.
-// Website-specific UIs can import and use the newsletter helpers from './newsletter'.
+import { useEffect } from 'react'
+import Navbar from './components/Navbar'
+import Hero from './components/Hero'
+import About from './components/About'
+import Menu from './components/Menu'
+import Gallery from './components/Gallery'
+import Hours from './components/Hours'
+import Contact from './components/Contact'
+import Footer from './components/Footer'
+
+const BUSINESS_ID = "73602352-311b-411f-90f6-43ae046a2f29"
 
 function App() {
-  return null
+  useEffect(() => {
+    // Intersection Observer for scroll animations
+    const observerOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.1
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('revealed')
+          observer.unobserve(entry.target)
+        }
+      })
+    }, observerOptions)
+
+    // Observe all scroll-reveal elements
+    const revealElements = document.querySelectorAll('.scroll-reveal')
+    revealElements.forEach(el => observer.observe(el))
+
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div className="min-h-screen bg-stone-950">
+      <Navbar />
+      <main>
+        <Hero businessId={BUSINESS_ID} />
+        <About />
+        <Menu />
+        <Gallery />
+        <Hours />
+        <Contact businessId={BUSINESS_ID} />
+      </main>
+      <Footer />
+    </div>
+  )
 }
 
 export default App

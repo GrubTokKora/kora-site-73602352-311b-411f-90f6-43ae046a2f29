@@ -20,9 +20,6 @@ export type NewsletterSubscribeResult = {
   channels?: string[]
 }
 
-// Base URL for the public API. Hardcoded to dev environment for now.
-// const API_BASE_URL = 'https://kora-agent.quseappdev.com/api'
-
 function getApiBaseUrl(): string {
   // Prefer a dynamically injected base URL from the hosting environment, if present.
   if (typeof window !== 'undefined') {
@@ -34,7 +31,6 @@ function getApiBaseUrl(): string {
   }
 
   // Fallback to the default dev/staging backend host.
-  // This should point at the correct environment-specific API gateway without the /api suffix.
   return 'https://kora-agent.quseappdev.com'
 }
 
@@ -73,30 +69,38 @@ export async function subscribeToNewsletter(
 
   const apiBaseUrl = getApiBaseUrl()
 
-  const resp = await fetch(`${apiBaseUrl}/api/v1/public/newsletter/subscribe`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
+  try {
+    const resp = await fetch(`${apiBaseUrl}/api/v1/public/newsletter/subscribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
 
-  if (!resp.ok) {
+    if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({}))
+      return {
+        success: false,
+        status: 'error',
+        message: errorData.message || 'Failed to subscribe to newsletter.',
+      }
+    }
+
+    const json = (await resp.json()) as any
+
+    return {
+      success: true,
+      status: json.status ?? 'subscribed',
+      message: json.message ?? 'Subscribed to newsletter.',
+      subscriberId: json.subscriber_id ?? json.id ?? undefined,
+      channels: json.channels ?? undefined,
+    }
+  } catch (error) {
     return {
       success: false,
       status: 'error',
-      message: 'Failed to subscribe to newsletter.',
+      message: 'Network error. Please check your connection and try again.',
     }
   }
-
-  const json = (await resp.json()) as any
-
-  return {
-    success: true,
-    status: json.status ?? 'subscribed',
-    message: json.message ?? 'Subscribed to newsletter.',
-    subscriberId: json.subscriber_id ?? json.id ?? undefined,
-    channels: json.channels ?? undefined,
-  }
 }
-
