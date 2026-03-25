@@ -174,7 +174,7 @@ export function useVoiceAgent() {
             } else if (data.state === 'speaking') {
                 setAgentState('speaking');
             } else {
-                if (agentState !== 'listening') setAgentState('listening');
+                setAgentState('listening');
             }
             break;
           case 'session.error':
