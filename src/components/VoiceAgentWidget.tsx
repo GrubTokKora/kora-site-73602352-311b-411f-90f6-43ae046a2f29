@@ -1,258 +1,282 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { FC } from 'react';
-import { Mic, X, Loader, Volume2, AlertTriangle } from 'lucide-react';
+import { Mic, X, Bot, Loader, Volume2, AlertTriangle } from 'lucide-react';
 import { createVoiceSession } from '../voice';
 import { audioBufferToPcm16Base64, downsampleBuffer } from '../utils/audio';
 
-type AgentState = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error';
+type VoiceAgentState = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error';
 
 const TARGET_SAMPLE_RATE = 16000;
 
-export const VoiceAgentWidget: FC = () => {
+export default function VoiceAgentWidget() {
   const [isVisible, setIsVisible] = useState(false);
-  const [agentState, setAgentState] = useState<AgentState>('idle');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [agentState, setAgentState] = useState<VoiceAgentState>('idle');
   const [transcript, setTranscript] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const webSocketRef = useRef<WebSocket | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
-  const audioQueueRef = useRef<string[]>([]);
-  const isPlayingRef = useRef(false);
-  const sessionDataRef = useRef<any>(null);
+  const ws = useRef<WebSocket | null>(null);
+  const audioContext = useRef<AudioContext | null>(null);
+  const mediaStream = useRef<MediaStream | null>(null);
+  const audioProcessor = useRef<ScriptProcessorNode | null>(null);
+  const audioQueue = useRef<AudioBuffer[]>([]);
+  const isPlaying = useRef(false);
 
   useEffect(() => {
-    const voiceEnabled = (window as any).KORA_CONFIG?.features?.voice?.enabled === true;
-    setIsVisible(voiceEnabled);
-  }, []);
-
-  const stopSession = useCallback(() => {
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
+    // Check config on mount to decide if the widget should be enabled at all
+    if ((window as any).KORA_CONFIG?.features?.voice?.enabled === true) {
+      setIsVisible(true);
     }
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
-    }
-    if (webSocketRef.current) {
-      webSocketRef.current.close();
-      webSocketRef.current = null;
-    }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().then(() => {
-        audioContextRef.current = null;
-      });
-    }
-    audioQueueRef.current = [];
-    isPlayingRef.current = false;
-    setAgentState('idle');
-    setTranscript('');
   }, []);
 
   const playNextInQueue = useCallback(async () => {
-    if (audioQueueRef.current.length === 0 || isPlayingRef.current) {
-      if (audioQueueRef.current.length === 0) {
-        isPlayingRef.current = false;
-      }
+    if (isPlaying.current || audioQueue.current.length === 0) {
       return;
     }
-
-    isPlayingRef.current = true;
+    isPlaying.current = true;
     setAgentState('speaking');
 
-    const base64Audio = audioQueueRef.current.shift();
-    if (!base64Audio || !audioContextRef.current) {
-      isPlayingRef.current = false;
+    const buffer = audioQueue.current.shift();
+    if (buffer && audioContext.current) {
+      const source = audioContext.current.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.current.destination);
+      source.onended = () => {
+        isPlaying.current = false;
+        if (audioQueue.current.length > 0) {
+          playNextInQueue();
+        } else {
+          // If queue is empty, go back to listening
+          setAgentState('listening');
+        }
+      };
+      source.start();
+    } else {
+      isPlaying.current = false;
+    }
+  }, []);
+
+  const handleAudioData = useCallback(async (base64Audio: string) => {
+    try {
+      if (!audioContext.current) {
+        audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const audioData = atob(base64Audio);
+      const uint8Array = new Uint8Array(audioData.length);
+      for (let i = 0; i < audioData.length; i++) {
+        uint8Array[i] = audioData.charCodeAt(i);
+      }
+      const decodedData = await audioContext.current.decodeAudioData(uint8Array.buffer);
+      audioQueue.current.push(decodedData);
+      playNextInQueue();
+    } catch (error) {
+      console.error('Error processing audio data:', error);
+    }
+  }, [playNextInQueue]);
+
+  const disconnect = useCallback(() => {
+    if (ws.current) {
+      ws.current.close();
+      ws.current = null;
+    }
+    if (mediaStream.current) {
+      mediaStream.current.getTracks().forEach(track => track.stop());
+      mediaStream.current = null;
+    }
+    if (audioProcessor.current) {
+      audioProcessor.current.disconnect();
+      audioProcessor.current = null;
+    }
+    audioQueue.current = [];
+    isPlaying.current = false;
+    if (agentState !== 'error') {
+      setAgentState('idle');
+    }
+  }, [agentState]);
+
+  const startMicrophone = useCallback(async () => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setErrorMessage('Microphone access is not supported by your browser.');
+      setAgentState('error');
       return;
     }
 
     try {
-      const audioData = atob(base64Audio);
-      const arrayBuffer = new ArrayBuffer(audioData.length);
-      const view = new Uint8Array(arrayBuffer);
-      for (let i = 0; i < audioData.length; i++) {
-        view[i] = audioData.charCodeAt(i);
+      mediaStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!audioContext.current) {
+        audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
+      
+      const source = audioContext.current.createMediaStreamSource(mediaStream.current);
+      const bufferSize = 4096;
+      audioProcessor.current = audioContext.current.createScriptProcessor(bufferSize, 1, 1);
 
-      const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
-      const source = audioContextRef.current.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(audioContextRef.current.destination);
-      source.onended = () => {
-        isPlayingRef.current = false;
-        playNextInQueue();
+      audioProcessor.current.onaudioprocess = async (e) => {
+        if (ws.current?.readyState === WebSocket.OPEN) {
+          const downsampledBuffer = await downsampleBuffer(e.inputBuffer, TARGET_SAMPLE_RATE);
+          const base64 = audioBufferToPcm16Base64(downsampledBuffer);
+          ws.current.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64 }));
+        }
       };
-      source.start();
-    } catch (e) {
-      console.error('Error playing audio:', e);
-      isPlayingRef.current = false;
-      playNextInQueue();
+
+      source.connect(audioProcessor.current);
+      audioProcessor.current.connect(audioContext.current.destination);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      setErrorMessage('Microphone access denied. Please enable it in your browser settings.');
+      setAgentState('error');
     }
   }, []);
 
-  const startMicrophone = useCallback(async () => {
-    if (!mediaStreamRef.current) {
-      try {
-        mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const audioContext = audioContextRef.current!;
-        const source = audioContext.createMediaStreamSource(mediaStreamRef.current);
-        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+  const connect = useCallback(async () => {
+    if (ws.current) return;
 
-        processor.onaudioprocess = async (e) => {
-          if (webSocketRef.current?.readyState === WebSocket.OPEN) {
-            const downsampled = await downsampleBuffer(e.inputBuffer, TARGET_SAMPLE_RATE);
-            const base64 = audioBufferToPcm16Base64(downsampled);
-            webSocketRef.current.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: base64 }));
-          }
-        };
-
-        source.connect(processor);
-        processor.connect(audioContext.destination);
-        processorRef.current = processor;
-      } catch (err) {
-        console.error('Error accessing microphone:', err);
-        setError('Microphone access denied. Please enable it in your browser settings.');
-        setAgentState('error');
-      }
-    }
-  }, []);
-
-  const startSession = useCallback(async () => {
-    if (agentState !== 'idle' && agentState !== 'error') return;
     setAgentState('connecting');
-    setError(null);
     setTranscript('');
+    setErrorMessage('');
 
     try {
-      const session = await createVoiceSession();
-      sessionDataRef.current = session;
-      const ws = new WebSocket(session.websocket_url, [`xai-client-secret.${session.client_secret}`]);
-      webSocketRef.current = ws;
+      const sessionData = await createVoiceSession();
+      const { websocket_url, client_secret, session } = sessionData;
 
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'session.update', session: session.session }));
+      if (!websocket_url || !client_secret || !session) {
+        throw new Error('Invalid session data received.');
+      }
+
+      const socket = new WebSocket(websocket_url, [`xai-client-secret.${client_secret}`]);
+      ws.current = socket;
+
+      socket.onopen = () => {
+        console.log('WebSocket connected');
+        socket.send(JSON.stringify({ type: 'session.update', session }));
       };
 
-      ws.onmessage = (event) => {
+      socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         switch (data.type) {
           case 'session.updated':
+            console.log('Session updated, starting microphone.');
             setAgentState('listening');
-            if (!audioContextRef.current) {
-              audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-                sampleRate: TARGET_SAMPLE_RATE,
-              });
-            }
             startMicrophone();
             break;
-          case 'response.output_audio.delta':
-            if (data.audio) {
-              audioQueueRef.current.push(data.audio);
-              playNextInQueue();
-            }
-            break;
           case 'response.output_audio_transcript.delta':
-            setTranscript(prev => prev + data.transcript);
+            setTranscript(prev => prev + data.delta);
             break;
           case 'response.output_audio_transcript.done':
-            // Potentially finalize transcript here if needed
+            // Final transcript chunk
             break;
-          case 'turn.done':
-            setTranscript(''); // Clear transcript for the next turn
-            setAgentState('listening');
+          case 'response.output_audio.delta':
+            if (data.delta) {
+              handleAudioData(data.delta);
+            }
             break;
           case 'session.error':
-            setError(data.message || 'A session error occurred.');
+            console.error('Session error:', data.error);
+            setErrorMessage(data.error.message || 'A session error occurred.');
             setAgentState('error');
+            disconnect();
+            break;
+          default:
             break;
         }
       };
 
-      ws.onclose = () => {
-        stopSession();
+      socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setErrorMessage('Connection failed. Please try again.');
+        setAgentState('error');
+        disconnect();
       };
 
-      ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
-        setError('Connection failed. Please try again.');
-        setAgentState('error');
-        stopSession();
+      socket.onclose = () => {
+        console.log('WebSocket disconnected');
+        disconnect();
       };
-    } catch (err: any) {
-      console.error('Failed to create voice session:', err);
-      setError(err.message || 'Could not start voice session.');
+    } catch (error) {
+      console.error('Failed to create voice session:', error);
+      const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+      setErrorMessage(message);
       setAgentState('error');
+      ws.current = null;
     }
-  }, [agentState, playNextInQueue, startMicrophone, stopSession]);
+  }, [handleAudioData, disconnect, startMicrophone]);
+
+  useEffect(() => {
+    return () => {
+      disconnect();
+    };
+  }, [disconnect]);
+
+  const openModal = () => {
+    setIsModalOpen(true);
+    connect();
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    disconnect();
+  };
 
   if (!isVisible) {
     return null;
   }
 
-  const handleFabClick = () => {
-    if (agentState === 'idle' || agentState === 'error') {
-      startSession();
-    } else {
-      stopSession();
-    }
-  };
-
-  const renderStateIcon = () => {
+  const getStatusIndicator = () => {
     switch (agentState) {
       case 'connecting':
-        return <Loader className="w-8 h-8 text-white animate-spin" />;
+        return <div className="flex items-center space-x-2"><Loader className="w-4 h-4 animate-spin" /><span>Connecting...</span></div>;
       case 'listening':
-        return <Mic className="w-8 h-8 text-white" />;
+        return <div className="flex items-center space-x-2 text-emerald-400"><Mic className="w-4 h-4" /><span>Listening...</span></div>;
       case 'speaking':
-        return <Volume2 className="w-8 h-8 text-white" />;
+        return <div className="flex items-center space-x-2 text-blue-400"><Volume2 className="w-4 h-4" /><span>Speaking...</span></div>;
       case 'error':
-        return <AlertTriangle className="w-8 h-8 text-yellow-400" />;
-      case 'idle':
+        return <div className="flex items-center space-x-2 text-red-400"><AlertTriangle className="w-4 h-4" /><span>Error</span></div>;
       default:
-        return <Mic className="w-8 h-8 text-white" />;
+        return <span>Idle</span>;
     }
   };
 
   return (
     <>
       <button
-        onClick={handleFabClick}
-        className={`fixed bottom-6 right-6 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 z-50
-          ${agentState === 'idle' || agentState === 'error' ? 'bg-red-600 hover:bg-red-700' : 'bg-stone-700 hover:bg-stone-600'}
-        `}
+        onClick={openModal}
+        className="fixed bottom-6 right-6 bg-red-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center hover:bg-red-700 transition-all duration-300 transform hover:scale-110 z-50"
         aria-label="Start Voice Assistant"
       >
-        {agentState === 'idle' || agentState === 'error' ? (
-          <Mic className="w-8 h-8 text-white" />
-        ) : (
-          <X className="w-8 h-8 text-white" />
-        )}
+        <Mic className="w-8 h-8" />
       </button>
 
-      {agentState !== 'idle' && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-40 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-stone-900/80 border border-stone-700 rounded-2xl w-full max-w-lg p-8 text-center animate-scale-in">
-            <div className="relative w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center bg-stone-800 border-2 border-stone-700">
-              {renderStateIcon()}
-              {agentState === 'listening' && <div className="absolute inset-0 rounded-full border-2 border-red-500 animate-ping"></div>}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-stone-900 border border-stone-700 rounded-2xl w-full max-w-lg shadow-2xl animate-scale-in">
+            <div className="flex justify-between items-center p-4 border-b border-stone-700">
+              <div className="flex items-center space-x-3">
+                <Bot className="w-6 h-6 text-red-500" />
+                <h2 className="text-lg font-semibold text-white">Voice Assistant</h2>
+              </div>
+              <button onClick={closeModal} className="text-stone-400 hover:text-white p-1 rounded-full hover:bg-stone-700">
+                <X className="w-6 h-6" />
+              </button>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2 capitalize">{agentState}</h3>
-            <p className="text-stone-400 min-h-[5rem]">
-              {error ? <span className="text-yellow-400">{error}</span> : transcript || 'Say something...'}
-            </p>
-            <button
-              onClick={stopSession}
-              className="mt-8 bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-medium transition-colors"
-            >
-              End Session
-            </button>
+            <div className="p-6 min-h-[200px] flex flex-col">
+              <div className="flex-grow text-stone-200">
+                {transcript || (agentState !== 'error' && <span className="text-stone-500">Say something to get started...</span>)}
+                {errorMessage && <p className="text-red-400 mt-4">{errorMessage}</p>}
+              </div>
+              <div className="text-sm text-stone-500 mt-4">
+                {getStatusIndicator()}
+              </div>
+            </div>
+            <div className="p-4 border-t border-stone-700 text-center">
+              <button
+                onClick={closeModal}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-medium transition-colors"
+              >
+                End Session
+              </button>
+            </div>
           </div>
         </div>
       )}
     </>
   );
-};
-
-export default VoiceAgentWidget;
+}
