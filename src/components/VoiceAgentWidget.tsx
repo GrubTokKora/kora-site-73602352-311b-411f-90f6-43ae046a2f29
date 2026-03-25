@@ -1,121 +1,90 @@
 import { useState, useEffect } from 'react';
-import { Mic, X, Loader, Bot, Volume2, AlertTriangle } from 'lucide-react';
-import { useVoiceAgent } from '../hooks/useVoiceAgent';
 import type { AgentState } from '../hooks/useVoiceAgent';
+import { Mic, X, Bot, AlertTriangle, Loader } from 'lucide-react';
+import { useVoiceAgent } from '../hooks/useVoiceAgent';
 
-const StatusIndicator = ({ state }: { state: AgentState }) => {
-  let icon, text, color;
-  switch (state) {
-    case 'connecting':
-      icon = <Loader className="w-5 h-5 animate-spin" />;
-      text = 'Connecting...';
-      color = 'text-stone-400';
-      break;
-    case 'listening':
-      icon = <Mic className="w-5 h-5 text-emerald-400" />;
-      text = 'Listening...';
-      color = 'text-emerald-400';
-      break;
-    case 'speaking':
-      icon = <Volume2 className="w-5 h-5 text-blue-400" />;
-      text = 'Speaking...';
-      color = 'text-blue-400';
-      break;
-    case 'thinking':
-      icon = <Bot className="w-5 h-5 text-amber-400" />;
-      text = 'Thinking...';
-      color = 'text-amber-400';
-      break;
-    case 'error':
-      icon = <AlertTriangle className="w-5 h-5 text-red-400" />;
-      text = 'Error';
-      color = 'text-red-400';
-      break;
-    default:
-      return null;
-  }
-
-  return (
-    <div className={`flex items-center space-x-2 text-sm font-medium ${color}`}>
-      {icon}
-      <span>{text}</span>
-    </div>
-  );
-};
-
-export default function VoiceAgentWidget() {
-  const [isMounted, setIsMounted] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const VoiceAgentWidget = () => {
+  const [isOpen, setIsOpen] = useState(false);
   const { agentState, transcript, error, startSession, stopSession } = useVoiceAgent();
 
+  const isVoiceEnabled = (window as any).KORA_CONFIG?.features?.voice?.enabled === true;
+
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    if (isOpen && (agentState === 'idle' || agentState === 'error')) {
+      startSession();
+    }
+  }, [isOpen, agentState, startSession]);
 
-  const handleFabClick = () => {
-    setIsModalOpen(true);
-    startSession();
+  const handleToggle = () => {
+    if (isOpen) {
+      stopSession();
+    }
+    setIsOpen(!isOpen);
   };
 
-  const handleClose = () => {
-    stopSession();
-    setIsModalOpen(false);
-  };
-
-  if (!isMounted || !(window as any).KORA_CONFIG?.features?.voice?.enabled) {
+  if (!isVoiceEnabled) {
     return null;
   }
 
+  const getStatusIndicator = (state: AgentState) => {
+    switch (state) {
+      case 'connecting':
+        return <div className="p-2"><Loader className="w-6 h-6 animate-spin text-blue-400" /></div>;
+      case 'listening':
+        return <div className="p-2 bg-green-500/20 rounded-full"><div className="w-6 h-6 bg-green-500 rounded-full animate-pulse" /></div>;
+      case 'thinking':
+        return <div className="p-2 bg-yellow-500/20 rounded-full"><div className="w-6 h-6 bg-yellow-500 rounded-full animate-ping" /></div>;
+      case 'speaking':
+        return <div className="p-2 bg-blue-500/20 rounded-full"><div className="w-6 h-6 bg-blue-500 rounded-full animate-pulse" /></div>;
+      case 'error':
+        return <div className="p-2"><AlertTriangle className="w-6 h-6 text-red-500" /></div>;
+      default:
+        return <Mic className="w-6 h-6" />;
+    }
+  };
+
   return (
     <>
-      {!isModalOpen && (
-        <button
-          onClick={handleFabClick}
-          className="voice-agent-fab w-16 h-16 bg-red-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-red-600/30 hover:bg-red-700 transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-red-600/50"
-          aria-label="Start Voice Assistant"
-        >
-          <Mic className="w-8 h-8" />
-        </button>
-      )}
+      <button
+        onClick={handleToggle}
+        className="fixed bottom-6 right-6 bg-red-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center z-50 hover:bg-red-700 transition-all transform hover:scale-110"
+        aria-label={isOpen ? 'Close Voice Assistant' : 'Open Voice Assistant'}
+      >
+        {isOpen ? <X className="w-8 h-8" /> : <Mic className="w-8 h-8" />}
+      </button>
 
-      {isModalOpen && (
-        <div className="voice-agent-modal-overlay animate-fade-in">
-          <div className="voice-agent-modal animate-slide-in-up p-6 flex flex-col h-[70vh] max-h-[600px]">
-            <div className="flex justify-between items-center mb-4 flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <Bot className="w-6 h-6 text-red-500" />
-                <h2 className="text-xl font-bold text-white">Voice Assistant</h2>
+      {isOpen && (
+        <div className="fixed bottom-24 right-6 w-full max-w-sm h-[60vh] bg-stone-900/80 backdrop-blur-md rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden border border-stone-700 animate-slide-in-up">
+          <div className="flex-shrink-0 p-4 border-b border-stone-700 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Bot className="w-6 h-6 text-red-500" />
+              <h3 className="text-lg font-bold text-white">Voice Assistant</h3>
+            </div>
+            {getStatusIndicator(agentState)}
+          </div>
+          <div className="flex-grow p-4 overflow-y-auto">
+            {error && (
+              <div className="p-3 bg-red-500/10 text-red-400 rounded-lg mb-4">
+                <p className="font-semibold">Error</p>
+                <p>{error}</p>
               </div>
-              <button
-                onClick={handleClose}
-                className="p-2 text-stone-400 hover:text-white hover:bg-stone-700 rounded-full transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="flex-grow bg-stone-800/50 rounded-lg p-4 overflow-y-auto mb-4">
-              <p className="text-stone-200 whitespace-pre-wrap leading-relaxed">
-                {transcript || (agentState === 'connecting' ? 'Please wait...' : 'Hi! How can I help you today?')}
-              </p>
-              {error && (
-                <p className="mt-4 text-red-400 bg-red-500/10 p-3 rounded-md">{error}</p>
-              )}
-            </div>
-
-            <div className="flex-shrink-0 h-12 flex items-center justify-between">
-              <StatusIndicator state={agentState} />
-              <button
-                onClick={handleClose}
-                className="px-6 py-2 bg-red-600 text-white rounded-full font-semibold hover:bg-red-700 transition-colors"
-              >
-                End Session
-              </button>
-            </div>
+            )}
+            <p className="text-stone-200 whitespace-pre-wrap leading-relaxed">
+              {transcript || (agentState === 'listening' ? 'Listening...' : 'Say something to start...')}
+            </p>
+          </div>
+          <div className="flex-shrink-0 p-4 border-t border-stone-700">
+            <button
+              onClick={handleToggle}
+              className="w-full bg-stone-700 hover:bg-stone-600 text-white py-3 rounded-lg font-medium transition-colors"
+            >
+              End Session
+            </button>
           </div>
         </div>
       )}
     </>
   );
-}
+};
+
+export default VoiceAgentWidget;

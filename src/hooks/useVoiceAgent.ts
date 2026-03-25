@@ -32,15 +32,29 @@ export function useVoiceAgent() {
     setAgentState('speaking');
 
     const audioData = audioQueueRef.current.shift();
-    if (audioData && audioContextRef.current) {
+    if (audioData && audioContextRef.current && sessionConfigRef.current) {
       try {
-        const decodedData = atob(audioData);
-        const uint8Array = new Uint8Array(decodedData.length);
-        for (let i = 0; i < decodedData.length; i++) {
-          uint8Array[i] = decodedData.charCodeAt(i);
+        if (audioContextRef.current.state === 'suspended') {
+          await audioContextRef.current.resume();
         }
 
-        const audioBuffer = await audioContextRef.current.decodeAudioData(uint8Array.buffer);
+        // Manually decode base64 PCM16 LE
+        const binaryString = atob(audioData);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const pcm16 = new Int16Array(bytes.buffer);
+
+        const sampleRate = sessionConfigRef.current.audio.output.format.rate || 24000;
+        const audioBuffer = audioContextRef.current.createBuffer(1, pcm16.length, sampleRate);
+        const channelData = audioBuffer.getChannelData(0);
+
+        for (let i = 0; i < pcm16.length; i++) {
+          channelData[i] = pcm16[i] / 32768.0; // Convert to float
+        }
+
         const source = audioContextRef.current.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(audioContextRef.current.destination);
@@ -56,11 +70,8 @@ export function useVoiceAgent() {
       }
     } else {
       isPlayingRef.current = false;
-      if (agentState === 'speaking') {
-        setAgentState('listening');
-      }
     }
-  }, [agentState]);
+  }, []);
 
   const stopSession = useCallback(() => {
     setAgentState('idle');
@@ -169,12 +180,8 @@ export function useVoiceAgent() {
             }
             break;
           case 'response.state.updated':
-            if (data.state === 'thinking') {
-                setAgentState('thinking');
-            } else if (data.state === 'speaking') {
-                setAgentState('speaking');
-            } else {
-                setAgentState('listening');
+            if (['thinking', 'speaking', 'listening'].includes(data.state)) {
+              setAgentState(data.state);
             }
             break;
           case 'session.error':
