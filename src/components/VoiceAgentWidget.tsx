@@ -1,220 +1,185 @@
-import { useState, useEffect, useRef } from 'react'
-import type { FC, FormEvent } from 'react'
-import { Mic, Send, Bot, X, LoaderCircle } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { Mic, Bot, X, Loader, Volume2 } from 'lucide-react';
+import { getApiBaseUrl, BUSINESS_ID } from '../utils/api';
 
-// Helper to get API base URL from runtime config
-function getApiBaseUrl(): string {
-  if (typeof window !== 'undefined' && window.KORA_CONFIG?.apiBaseUrl) {
-    return window.KORA_CONFIG.apiBaseUrl.replace(/\/+$/, '')
-  }
-  // Fallback, though the backend should always provide this.
-  return 'http://localhost:8000'
-}
+type AgentStatus = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
+type Message = {
+  sender: 'user' | 'agent';
+  text: string;
+};
 
-interface Message {
-  id: string
-  text: string
-  sender: 'user' | 'bot'
-}
-
-interface VoiceAgentWidgetProps {
-  businessId: string
-}
-
-const VoiceAgentWidget: FC<VoiceAgentWidgetProps> = ({ businessId }) => {
-  const [isConfigEnabled, setIsConfigEnabled] = useState(false)
-  const [isOpen, setIsOpen] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
-  const [sessionId, setSessionId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [userInput, setUserInput] = useState('')
-  const [isSending, setIsSending] = useState(false)
-
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+export default function VoiceAgentWidget() {
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [session, setSession] = useState<any>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [status, setStatus] = useState<AgentStatus>('idle');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Fetch public voice config to determine if the widget should be shown
-    const fetchVoiceConfig = async () => {
+    const fetchConfig = async () => {
       try {
-        const apiBaseUrl = getApiBaseUrl()
-        const response = await fetch(`${apiBaseUrl}/api/v1/public/voice/config/${businessId}`)
+        const apiBaseUrl = getApiBaseUrl();
+        const response = await fetch(`${apiBaseUrl}/api/v1/public/voice/config/${BUSINESS_ID}`);
         if (!response.ok) {
-          throw new Error('Could not fetch voice configuration.')
+          throw new Error('Failed to fetch voice configuration');
         }
-        const config = await response.json()
-        if (config.enabled) {
-          setIsConfigEnabled(true)
-        }
-      } catch (err) {
-        console.error('Voice Agent: Error fetching config:', err)
-        // Silently fail, widget will not be rendered
+        const config = await response.json();
+        setIsEnabled(config.enabled);
+      } catch (e) {
+        console.error('Voice Agent Error:', e);
+        setIsEnabled(false);
       } finally {
-        setIsLoading(false)
+        setIsConfigured(true);
       }
-    }
+    };
 
-    fetchVoiceConfig()
-  }, [businessId])
+    fetchConfig();
+  }, []);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  useEffect(scrollToBottom, [messages])
-
-  const startSession = async () => {
-    if (sessionId) return
-    setIsSending(true)
-    setError(null)
+  const createSession = async () => {
+    if (session) return;
     try {
-      const apiBaseUrl = getApiBaseUrl()
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/api/v1/public/voice/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_id: businessId }),
-      })
-      if (!response.ok) throw new Error('Failed to start session.')
-      const data = await response.json()
-      setSessionId(data.session_id)
-      setMessages([{ id: 'welcome', text: data.welcome_message || 'Hello! How can I help you today?', sender: 'bot' }])
-    } catch (err) {
-      setError('Could not connect to the voice agent. Please try again later.')
-      console.error('Voice Agent: Session start error:', err)
-    } finally {
-      setIsSending(false)
+        body: JSON.stringify({ business_id: BUSINESS_ID }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create voice session');
+      }
+      const sessionData = await response.json();
+      setSession(sessionData);
+      setMessages([{ sender: 'agent', text: "Hello! How can I help you today?" }]);
+    } catch (e) {
+      console.error('Voice Session Error:', e);
+      setError('Could not connect to the voice agent.');
+      setStatus('error');
     }
-  }
+  };
 
-  const handleWidgetToggle = () => {
-    const nextIsOpen = !isOpen
-    setIsOpen(nextIsOpen)
-    if (nextIsOpen && !sessionId) {
-      startSession()
+  const toggleWidget = () => {
+    setIsOpen(prev => {
+      if (!prev && isEnabled && !session) {
+        createSession();
+      }
+      return !prev;
+    });
+  };
+
+  const handleMicClick = () => {
+    if (status === 'listening') {
+      setStatus('processing');
+      // Mock processing and response
+      setTimeout(() => {
+        setMessages(prev => [...prev, { sender: 'user', text: 'How late are you open?' }]);
+        setStatus('speaking');
+        setTimeout(() => {
+          setMessages(prev => [...prev, { sender: 'agent', text: 'We are open until 5:00 PM every day.' }]);
+          setStatus('idle');
+        }, 2000);
+      }, 1500);
+    } else {
+      setStatus('listening');
     }
+  };
+
+  if (!isConfigured || !isEnabled) {
+    return null;
   }
 
-  const handleSendMessage = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!userInput.trim() || isSending || !sessionId) return
-
-    const userMessage: Message = { id: Date.now().toString(), text: userInput, sender: 'user' }
-    setMessages(prev => [...prev, userMessage])
-    setUserInput('')
-    setIsSending(true)
-    setError(null)
-
-    try {
-      const apiBaseUrl = getApiBaseUrl()
-      const response = await fetch(`${apiBaseUrl}/api/v1/public/voice/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: sessionId,
-          message: userInput,
-        }),
-      })
-
-      if (!response.ok) throw new Error('Failed to get a response.')
-      
-      const data = await response.json()
-      const botMessage: Message = { id: data.id || Date.now().toString() + 'b', text: data.reply, sender: 'bot' }
-      setMessages(prev => [...prev, botMessage])
-
-    } catch (err) {
-      setError('Sorry, something went wrong. Please try again.')
-      console.error('Voice Agent: Chat error:', err)
-      const errorMessage: Message = { id: 'error-' + Date.now(), text: 'I seem to be having trouble connecting. Please try again in a moment.', sender: 'bot' };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsSending(false)
+  const MicButton = () => {
+    switch (status) {
+      case 'listening':
+        return (
+          <div className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center animate-pulse">
+            <Mic className="w-10 h-10 text-white" />
+          </div>
+        );
+      case 'processing':
+        return (
+          <div className="w-20 h-20 rounded-full bg-stone-600 flex items-center justify-center">
+            <Loader className="w-10 h-10 text-white animate-spin" />
+          </div>
+        );
+      case 'speaking':
+        return (
+          <div className="w-20 h-20 rounded-full bg-emerald-600 flex items-center justify-center">
+            <Volume2 className="w-10 h-10 text-white" />
+          </div>
+        );
+      case 'error':
+         return (
+          <div className="w-20 h-20 rounded-full bg-stone-700 flex items-center justify-center">
+            <X className="w-10 h-10 text-red-400" />
+          </div>
+        );
+      default: // idle
+        return (
+          <div className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center">
+            <Mic className="w-10 h-10 text-white" />
+          </div>
+        );
     }
-  }
-
-  if (isLoading || !isConfigEnabled) {
-    return null
-  }
+  };
 
   return (
     <>
-      {/* Chat Panel */}
-      <div className={`fixed bottom-24 right-4 sm:right-6 md:right-8 z-50 w-[calc(100%-2rem)] sm:w-96 h-[60vh] bg-stone-900/80 backdrop-blur-xl border border-stone-700 rounded-2xl shadow-2xl flex flex-col transition-all duration-500 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
-        {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-stone-700">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center">
-              <Bot className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white">AI Assistant</h3>
-              <p className="text-xs text-emerald-400 flex items-center"><span className="w-2 h-2 bg-emerald-400 rounded-full mr-1.5"></span>Online</p>
-            </div>
-          </div>
-          <button onClick={() => setIsOpen(false)} className="p-2 text-stone-400 hover:text-white hover:bg-stone-700 rounded-full transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-grow p-4 overflow-y-auto">
-          <div className="space-y-4">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.sender === 'bot' && <div className="w-8 h-8 bg-stone-700 rounded-full flex items-center justify-center flex-shrink-0"><Bot className="w-5 h-5 text-stone-300" /></div>}
-                <div className={`max-w-[80%] px-4 py-2 rounded-2xl ${msg.sender === 'user' ? 'bg-red-600 text-white rounded-br-none' : 'bg-stone-800 text-stone-200 rounded-bl-none'}`}>
-                  <p className="text-sm">{msg.text}</p>
-                </div>
-              </div>
-            ))}
-            {isSending && messages[messages.length - 1]?.sender === 'user' && (
-              <div className="flex items-end gap-2 justify-start">
-                <div className="w-8 h-8 bg-stone-700 rounded-full flex items-center justify-center flex-shrink-0"><Bot className="w-5 h-5 text-stone-300" /></div>
-                <div className="max-w-[80%] px-4 py-2 rounded-2xl bg-stone-800 text-stone-200 rounded-bl-none">
-                  <div className="flex items-center space-x-2">
-                    <span className="w-2 h-2 bg-stone-400 rounded-full animate-pulse delay-0"></span>
-                    <span className="w-2 h-2 bg-stone-400 rounded-full animate-pulse delay-200"></span>
-                    <span className="w-2 h-2 bg-stone-400 rounded-full animate-pulse delay-400"></span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {error && <p className="text-xs text-red-400 text-center pt-2">{error}</p>}
-          </div>
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="flex-shrink-0 p-4 border-t border-stone-700">
-          <form onSubmit={handleSendMessage} className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              placeholder="Ask a question..."
-              className="w-full px-4 py-2 bg-stone-800 border border-stone-700 rounded-full text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-red-600 transition-all"
-              disabled={isSending || !sessionId}
-            />
-            <button type="button" className="p-3 bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white rounded-full transition-colors disabled:opacity-50" disabled={isSending || !sessionId}>
-              <Mic className="w-5 h-5" />
-            </button>
-            <button type="submit" className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors disabled:opacity-50" disabled={isSending || !sessionId}>
-              {isSending ? <LoaderCircle className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Trigger Button */}
       <button
-        onClick={handleWidgetToggle}
-        className={`fixed bottom-4 right-4 sm:right-6 md:right-8 z-50 w-16 h-16 bg-red-600 text-white rounded-full shadow-2xl shadow-red-600/30 flex items-center justify-center transition-all duration-300 ease-in-out transform hover:scale-110 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-600/50 ${isOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
-        aria-label="Open AI Assistant"
+        onClick={toggleWidget}
+        className="fixed bottom-6 right-6 bg-red-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center z-50 hover:bg-red-700 transition-transform transform hover:scale-110"
+        aria-label="Open Voice Assistant"
       >
         <Bot className="w-8 h-8" />
       </button>
-    </>
-  )
-}
 
-export default VoiceAgentWidget
+      {isOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-fade-in" onClick={toggleWidget}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full h-full md:w-[400px] md:max-h-[70vh] md:h-auto bg-stone-900/95 backdrop-blur-xl border border-stone-700 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up"
+            style={{ minHeight: '400px' }}
+          >
+            <header className="flex items-center justify-between p-4 border-b border-stone-700 flex-shrink-0">
+              <div className="flex items-center space-x-3">
+                <Bot className="w-6 h-6 text-red-500" />
+                <h2 className="text-lg font-bold text-white">Voice Assistant</h2>
+              </div>
+              <button onClick={toggleWidget} className="p-2 text-stone-400 hover:text-white hover:bg-stone-700 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {messages.map((msg, index) => (
+                <div key={index} className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.sender === 'agent' && <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0"><Bot className="w-5 h-5 text-red-500" /></div>}
+                  <div className={`max-w-[80%] p-3 rounded-2xl ${msg.sender === 'user' ? 'bg-red-600 text-white rounded-br-none' : 'bg-stone-800 text-stone-200 rounded-bl-none'}`}>
+                    <p className="text-sm">{msg.text}</p>
+                  </div>
+                </div>
+              ))}
+              {status === 'listening' && <div className="text-center text-stone-400 text-sm">Listening...</div>}
+              {error && <div className="p-3 bg-red-900/50 border border-red-500/30 text-red-300 rounded-lg text-sm">{error}</div>}
+            </div>
+
+            <footer className="p-6 flex flex-col items-center justify-center border-t border-stone-700 flex-shrink-0">
+              <button onClick={handleMicClick} disabled={status === 'processing' || status === 'speaking' || !!error}>
+                <MicButton />
+              </button>
+              <p className="text-xs text-stone-500 mt-3">
+                {status === 'idle' && 'Tap to speak'}
+                {status === 'listening' && 'Tap to stop'}
+                {status === 'processing' && 'Thinking...'}
+                {status === 'speaking' && 'Responding...'}
+                {status === 'error' && 'Connection failed'}
+              </p>
+            </footer>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
