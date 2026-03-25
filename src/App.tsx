@@ -8,6 +8,7 @@ import Hours from './components/Hours'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
 
+
 const BUSINESS_ID = "73602352-311b-411f-90f6-43ae046a2f29"
 
 function App() {
@@ -35,7 +36,7 @@ function App() {
     return () => observer.disconnect()
   }, [])
 
-  return (
+return (
     <div className="min-h-screen bg-stone-950">
       <Navbar />
       <main>
