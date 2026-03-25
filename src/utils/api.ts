@@ -9,5 +9,5 @@ export function getApiBaseUrl(): string {
   }
   // The backbone provides this value, which should be injected into KORA_CONFIG.
   // As a last resort, we use the value from the last known backbone.
-  return 'http://localhost:8000';
+  return 'https://lyolytic-pseudochylous-jestine.ngrok-free.dev';
 }
