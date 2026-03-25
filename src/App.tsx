@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
 import About from './components/About'
@@ -9,12 +9,9 @@ import Contact from './components/Contact'
 import Footer from './components/Footer'
 import VoiceAgentWidget from './components/VoiceAgentWidget'
 
-
 import { BUSINESS_ID } from './utils/api'
 
 function App() {
-  const [isVoiceAgentEnabled, setIsVoiceAgentEnabled] = useState(false)
-
   useEffect(() => {
     // Intersection Observer for scroll animations
     const observerOptions = {
@@ -36,11 +33,6 @@ function App() {
     const revealElements = document.querySelectorAll('.scroll-reveal')
     revealElements.forEach(el => observer.observe(el))
 
-    // Check for voice agent feature flag
-    if (window.KORA_CONFIG?.features?.voice?.enabled) {
-      setIsVoiceAgentEnabled(true)
-    }
-
     return () => observer.disconnect()
   }, [])
 
@@ -56,7 +48,7 @@ return (
         <Contact businessId={BUSINESS_ID} />
       </main>
       <Footer />
-      {isVoiceAgentEnabled && <VoiceAgentWidget />}
+      <VoiceAgentWidget />
     </div>
   )
 }
