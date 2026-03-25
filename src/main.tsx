@@ -16,6 +16,12 @@ declare global {
     }
     KORA_CONFIG?: {
       apiBaseUrl?: string
+      features?: {
+        voice?: {
+          enabled?: boolean
+          provider?: string
+        }
+      }
       // Other runtime configuration fields may be added by the backend.
       // This object is intended for environment-specific, non-secret public config.
     }

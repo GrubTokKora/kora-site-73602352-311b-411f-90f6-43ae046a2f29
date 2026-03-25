@@ -1,16 +1,25 @@
-import { useState, useEffect } from 'react';
-import { Mic, Bot, X, Loader, Volume2 } from 'lucide-react';
-import { getApiBaseUrl, BUSINESS_ID } from '../utils/api';
+import { useState, useEffect, useMemo } from 'react';
+import { Mic, Bot, X, Loader } from 'lucide-react';
+import { createVoiceSession } from '../voice';
 
-type AgentStatus = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
+type AgentStatus = 'idle' | 'loading' | 'ready' | 'error';
 type Message = {
   sender: 'user' | 'agent';
   text: string;
 };
 
+function isVoiceFeatureEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const voiceConfig = window.KORA_CONFIG?.features?.voice as { enabled?: boolean };
+    return voiceConfig?.enabled === true;
+  } catch {
+    return false;
+  }
+}
+
 export default function VoiceAgentWidget() {
-  const [isConfigured, setIsConfigured] = useState(false);
-  const [isEnabled, setIsEnabled] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -18,108 +27,82 @@ export default function VoiceAgentWidget() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const apiBaseUrl = getApiBaseUrl();
-        const response = await fetch(`${apiBaseUrl}/api/v1/public/voice/config/${BUSINESS_ID}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch voice configuration');
-        }
-        const config = await response.json();
-        setIsEnabled(config.enabled);
-      } catch (e) {
-        console.error('Voice Agent Error:', e);
-        setIsEnabled(false);
-      } finally {
-        setIsConfigured(true);
-      }
-    };
-
-    fetchConfig();
+    // Visibility is determined by the static config injected into index.html
+    setVisible(isVoiceFeatureEnabled());
   }, []);
 
-  const createSession = async () => {
-    if (session) return;
+  const locale = useMemo(() => (typeof navigator !== 'undefined' ? navigator.language : 'en-US'), []);
+
+  const startSession = async () => {
+    if (session || status === 'loading') return;
+    
+    setStatus('loading');
+    setError(null);
     try {
-      const apiBaseUrl = getApiBaseUrl();
-      const response = await fetch(`${apiBaseUrl}/api/v1/public/voice/session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ business_id: BUSINESS_ID }),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to create voice session');
-      }
-      const sessionData = await response.json();
+      const sessionData = await createVoiceSession(
+        locale,
+        { url: window.location.href, title: document.title }
+      );
       setSession(sessionData);
       setMessages([{ sender: 'agent', text: "Hello! How can I help you today?" }]);
+      setStatus('ready');
+      // Dispatch event for other parts of the app to use the session
+      window.dispatchEvent(new CustomEvent('kora-voice-session-ready', { detail: sessionData }));
     } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Could not start voice session.';
       console.error('Voice Session Error:', e);
-      setError('Could not connect to the voice agent.');
+      setError(errorMessage);
       setStatus('error');
     }
   };
 
   const toggleWidget = () => {
     setIsOpen(prev => {
-      if (!prev && isEnabled && !session) {
-        createSession();
+      if (!prev && !session) {
+        startSession();
       }
       return !prev;
     });
   };
 
   const handleMicClick = () => {
-    if (status === 'listening') {
-      setStatus('processing');
-      // Mock processing and response
+    // This is a placeholder for actual voice recognition logic
+    if (status === 'ready') {
+      setMessages(prev => [...prev, { sender: 'user', text: 'How late are you open?' }]);
       setTimeout(() => {
-        setMessages(prev => [...prev, { sender: 'user', text: 'How late are you open?' }]);
-        setStatus('speaking');
-        setTimeout(() => {
-          setMessages(prev => [...prev, { sender: 'agent', text: 'We are open until 5:00 PM every day.' }]);
-          setStatus('idle');
-        }, 2000);
+        setMessages(prev => [...prev, { sender: 'agent', text: 'We are open until 5:00 PM every day.' }]);
       }, 1500);
-    } else {
-      setStatus('listening');
     }
   };
 
-  if (!isConfigured || !isEnabled) {
+  if (!visible) {
     return null;
   }
 
   const MicButton = () => {
     switch (status) {
-      case 'listening':
-        return (
-          <div className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center animate-pulse">
-            <Mic className="w-10 h-10 text-white" />
-          </div>
-        );
-      case 'processing':
+      case 'loading':
         return (
           <div className="w-20 h-20 rounded-full bg-stone-600 flex items-center justify-center">
             <Loader className="w-10 h-10 text-white animate-spin" />
           </div>
         );
-      case 'speaking':
+      case 'ready':
         return (
-          <div className="w-20 h-20 rounded-full bg-emerald-600 flex items-center justify-center">
-            <Volume2 className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center">
+            <Mic className="w-10 h-10 text-white" />
           </div>
         );
       case 'error':
-         return (
+        return (
           <div className="w-20 h-20 rounded-full bg-stone-700 flex items-center justify-center">
             <X className="w-10 h-10 text-red-400" />
           </div>
         );
       default: // idle
         return (
-          <div className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center">
-            <Mic className="w-10 h-10 text-white" />
+          <div className="w-20 h-20 rounded-full bg-stone-700 flex items-center justify-center">
+            <Mic className="w-10 h-10 text-stone-400" />
           </div>
         );
     }
@@ -161,19 +144,18 @@ export default function VoiceAgentWidget() {
                   </div>
                 </div>
               ))}
-              {status === 'listening' && <div className="text-center text-stone-400 text-sm">Listening...</div>}
+              {status === 'loading' && <div className="text-center text-stone-400 text-sm">Connecting...</div>}
               {error && <div className="p-3 bg-red-900/50 border border-red-500/30 text-red-300 rounded-lg text-sm">{error}</div>}
             </div>
 
             <footer className="p-6 flex flex-col items-center justify-center border-t border-stone-700 flex-shrink-0">
-              <button onClick={handleMicClick} disabled={status === 'processing' || status === 'speaking' || !!error}>
+              <button onClick={handleMicClick} disabled={status !== 'ready'}>
                 <MicButton />
               </button>
               <p className="text-xs text-stone-500 mt-3">
                 {status === 'idle' && 'Tap to speak'}
-                {status === 'listening' && 'Tap to stop'}
-                {status === 'processing' && 'Thinking...'}
-                {status === 'speaking' && 'Responding...'}
+                {status === 'loading' && 'Connecting...'}
+                {status === 'ready' && 'Tap to speak'}
                 {status === 'error' && 'Connection failed'}
               </p>
             </footer>
