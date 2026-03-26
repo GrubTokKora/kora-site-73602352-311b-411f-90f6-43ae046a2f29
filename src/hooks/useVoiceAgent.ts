@@ -10,6 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { } from 'react'
 import { createVoiceSession } from '../voice'
 
 export type VoiceMessage = { sender: 'user' | 'agent'; text: string }
