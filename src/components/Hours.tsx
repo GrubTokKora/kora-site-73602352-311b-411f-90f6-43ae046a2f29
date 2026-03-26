@@ -1,14 +1,12 @@
 import { Clock, MapPin } from 'lucide-react'
+import { hours, contact } from '../data'
 
-const hoursData = [
-  { day: 'Monday', hours: '9:00 AM – 5:00 PM' },
-  { day: 'Tuesday', hours: '9:00 AM – 5:00 PM' },
-  { day: 'Wednesday', hours: '9:00 AM – 5:00 PM' },
-  { day: 'Thursday', hours: '9:00 AM – 5:00 PM' },
-  { day: 'Friday', hours: '9:00 AM – 5:00 PM' },
-  { day: 'Saturday', hours: '9:00 AM – 5:00 PM' },
-  { day: 'Sunday', hours: '9:00 AM – 5:00 PM' },
-]
+const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+const hoursData = daysOfWeek.map(day => ({
+  day: day.charAt(0).toUpperCase() + day.slice(1),
+  hours: hours[day] || 'Closed'
+}));
 
 export default function Hours() {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' })
@@ -67,9 +65,8 @@ export default function Hours() {
                 <div>
                   <h3 className="text-white font-semibold mb-1">Location</h3>
                   <p className="text-stone-400 text-sm leading-relaxed">
-                    3321 S 200 E<br />
-                    South Salt Lake, UT 84115<br />
-                    USA
+                    {contact.address.split(',')[0].trim()}<br />
+                    {contact.address.split(',').slice(1, -1).join(',').trim()}
                   </p>
                 </div>
               </div>
@@ -105,7 +102,7 @@ export default function Hours() {
               {/* Overlay with CTA */}
               <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-stone-950 to-transparent">
                 <a 
-                  href="https://maps.google.com/?q=3321+S+200+E+South+Salt+Lake+UT+84115"
+                  href={`https://maps.google.com/?q=${encodeURIComponent(contact.address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full bg-white text-stone-900 text-center py-3 rounded-xl font-semibold hover:bg-stone-100 transition-colors duration-300"

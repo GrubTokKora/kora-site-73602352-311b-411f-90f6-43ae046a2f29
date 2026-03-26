@@ -1,9 +1,17 @@
-import { useState } from 'react'
-import { Mail, Phone, MapPin, Send, CheckCircle } from 'lucide-react'
-import { subscribeToNewsletter } from '../newsletter'
+import { useState, useEffect, useRef } from 'react'
+import type { FormEvent } from 'react'
+import { Mail, Phone, MapPin, Send, CheckCircle, Loader2 } from 'lucide-react'
+import { getApiBaseUrl } from '../utils/api'
+import { contact } from '../data'
 
 interface ContactProps {
   businessId: string
+}
+
+declare global {
+  interface Window {
+    grecaptcha: any;
+  }
 }
 
 export default function Contact({ businessId }: ContactProps) {
@@ -12,48 +20,75 @@ export default function Contact({ businessId }: ContactProps) {
     email: '',
     phone: '',
     message: '',
-    emailOptIn: true,
-    smsOptIn: false,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [error, setError] = useState('')
+  const recaptchaWidgetId = useRef<number | null>(null);
+  const recaptchaRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const recaptchaSiteKey = (window as any).KORA_CONFIG?.recaptchaSiteKey || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'; // fallback to test key
+
+  useEffect(() => {
+    if (isSubmitted) return;
+
+    const timer = setInterval(() => {
+      if (window.grecaptcha && window.grecaptcha.render && recaptchaRef.current && recaptchaWidgetId.current === null) {
+        recaptchaWidgetId.current = window.grecaptcha.render(recaptchaRef.current, {
+          sitekey: recaptchaSiteKey,
+        });
+        clearInterval(timer);
+      }
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [recaptchaSiteKey, isSubmitted]);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    
+    if (!formData.name || !formData.email || !formData.message) {
+      setError('Please fill out all required fields.');
+      return;
+    }
+
+    const token = window.grecaptcha.getResponse(recaptchaWidgetId.current);
+    if (!token) {
+      setError('Please complete the CAPTCHA.');
+      return;
+    }
+
     setIsSubmitting(true)
     setError('')
 
-    if (!formData.email && !formData.phone) {
-      setError('Please provide at least an email or phone number.')
-      setIsSubmitting(false)
-      return
-    }
-
     try {
-      const result = await subscribeToNewsletter({
-        businessId: businessId,
-        email: formData.email || undefined,
-        phoneNumber: formData.phone || undefined,
-        firstName: formData.name.split(' ')[0],
-        lastName: formData.name.split(' ').slice(1).join(' '),
-        emailOptIn: formData.emailOptIn,
-        smsOptIn: formData.smsOptIn,
-        metadata: { message: formData.message, source: 'contact_form' },
-      })
+      const apiBaseUrl = getApiBaseUrl();
+      const response = await fetch(`${apiBaseUrl}/api/v1/public/forms/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_id: businessId,
+          form_type: 'contact',
+          form_data: {
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            message: formData.message,
+          },
+          submitter_email: formData.email || null,
+          captcha_token: token,
+        }),
+      });
 
-      if (result.success) {
+      if (response.ok) {
         setIsSubmitted(true)
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          message: '',
-          emailOptIn: true,
-          smsOptIn: false,
-        })
+        setFormData({ name: '', email: '', phone: '', message: '' })
+        if (recaptchaWidgetId.current !== null) {
+          window.grecaptcha.reset(recaptchaWidgetId.current);
+        }
       } else {
-        setError(result.message || 'Failed to send message. Please try again.')
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.message || 'Failed to send message. Please try again.')
       }
     } catch (err) {
       setError('An error occurred. Please try again later.')
@@ -85,8 +120,8 @@ export default function Contact({ businessId }: ContactProps) {
                 </div>
                 <div>
                   <p className="text-stone-500 text-sm">Phone</p>
-                  <a href="tel:+18015551234" className="text-white font-semibold hover:text-red-500 transition-colors duration-300">
-                    (801) 555-1234
+<a href={`tel:${contact.phone}`} className="text-white font-semibold hover:text-red-500 transition-colors duration-300">
+                    {contact.phone}
                   </a>
                 </div>
               </div>
@@ -97,8 +132,8 @@ export default function Contact({ businessId }: ContactProps) {
                 </div>
                 <div>
                   <p className="text-stone-500 text-sm">Email</p>
-                  <a href="mailto:info@thepie.com" className="text-white font-semibold hover:text-red-500 transition-colors duration-300">
-                    info@thepie.com
+<a href={`mailto:${contact.email}`} className="text-white font-semibold hover:text-red-500 transition-colors duration-300">
+                    {contact.email}
                   </a>
                 </div>
               </div>
@@ -109,26 +144,10 @@ export default function Contact({ businessId }: ContactProps) {
                 </div>
                 <div>
                   <p className="text-stone-500 text-sm">Address</p>
-                  <p className="text-white font-semibold">
-                    3321 S 200 E, South Salt Lake, UT 84115
+<p className="text-white font-semibold">
+                    {contact.address.replace(', USA', '')}
                   </p>
                 </div>
-              </div>
-            </div>
-
-            {/* Newsletter Signup Info */}
-            <div className="mt-8 p-6 bg-stone-900 rounded-2xl border border-stone-800">
-              <h3 className="text-white font-semibold mb-2">Join Our Newsletter</h3>
-              <p className="text-stone-400 text-sm mb-4">
-                Subscribe to receive exclusive deals, new menu updates, and special event invitations.
-              </p>
-              <div className="flex items-center space-x-2 text-sm text-stone-500">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                <span>Weekly deals and coupons</span>
-              </div>
-              <div className="flex items-center space-x-2 text-sm text-stone-500 mt-1">
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
-                <span>New menu item announcements</span>
               </div>
             </div>
           </div>
@@ -159,6 +178,7 @@ export default function Contact({ businessId }: ContactProps) {
                     <input
                       type="text"
                       id="name"
+                      required
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-300"
@@ -174,6 +194,7 @@ export default function Contact({ businessId }: ContactProps) {
                       <input
                         type="email"
                         id="email"
+                        required
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-300"
@@ -182,7 +203,7 @@ export default function Contact({ businessId }: ContactProps) {
                     </div>
                     <div>
                       <label htmlFor="phone" className="block text-sm font-medium text-stone-300 mb-2">
-                        Phone Number
+                        Phone Number (Optional)
                       </label>
                       <input
                         type="tel"
@@ -202,6 +223,7 @@ export default function Contact({ businessId }: ContactProps) {
                     <textarea
                       id="message"
                       rows={4}
+                      required
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                       className="w-full px-4 py-3 bg-stone-800 border border-stone-700 rounded-xl text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-300 resize-none"
@@ -209,31 +231,7 @@ export default function Contact({ businessId }: ContactProps) {
                     />
                   </div>
 
-                  {/* Opt-in Checkboxes */}
-                  <div className="space-y-3">
-                    <label className="flex items-center space-x-3 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={formData.emailOptIn}
-                        onChange={(e) => setFormData({ ...formData, emailOptIn: e.target.checked })}
-                        className="w-5 h-5 rounded border-stone-600 bg-stone-800 text-red-600 focus:ring-red-600 focus:ring-offset-stone-900"
-                      />
-                      <span className="text-stone-300 text-sm group-hover:text-white transition-colors">
-                        Send me email updates and promotions
-                      </span>
-                    </label>
-                    <label className="flex items-center space-x-3 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={formData.smsOptIn}
-                        onChange={(e) => setFormData({ ...formData, smsOptIn: e.target.checked })}
-                        className="w-5 h-5 rounded border-stone-600 bg-stone-800 text-red-600 focus:ring-red-600 focus:ring-offset-stone-900"
-                      />
-                      <span className="text-stone-300 text-sm group-hover:text-white transition-colors">
-                        Send me SMS/text notifications
-                      </span>
-                    </label>
-                  </div>
+                  <div ref={recaptchaRef} className="flex justify-center"></div>
 
                   {error && (
                     <div className="p-4 bg-red-600/10 border border-red-600/30 rounded-xl text-red-400 text-sm">
@@ -247,7 +245,7 @@ export default function Contact({ businessId }: ContactProps) {
                     className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-xl font-semibold transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-red-600/25 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     {isSubmitting ? (
-                      <span>Sending...</span>
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
                       <>
                         <span>Send Message</span>
@@ -257,7 +255,7 @@ export default function Contact({ businessId }: ContactProps) {
                   </button>
 
                   <p className="text-xs text-stone-500 text-center">
-                    By submitting, you agree to receive communications from The Pie Pizzeria.
+                    This site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply.
                   </p>
                 </form>
               )}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import { menu, featured } from '../data'
 
 interface MenuItem {
   id: string
@@ -10,117 +11,12 @@ interface MenuItem {
   popular?: boolean
 }
 
-const menuItems: MenuItem[] = [
-  // Build Your Own
-  {
-    id: 'byo-1',
-    name: 'Build Your Own Pizza',
-    description: 'Start with our signature thick crust and tomato sauce, then add your favorite toppings. Cheese included.',
-    price: '12.99',
-    category: 'Build Your Own',
-  },
-  // Specialty Pizzas
-  {
-    id: 'spec-1',
-    name: 'The Ultimate Pie',
-    description: 'Pepperoni, sausage, mushrooms, onions, green peppers, black olives, and extra cheese.',
-    price: '24.99',
-    category: 'Specialty Pizzas',
-    popular: true,
-  },
-  {
-    id: 'spec-2',
-    name: 'BBQ Chicken',
-    description: 'Grilled chicken, red onions, cilantro, and our tangy BBQ sauce with mozzarella.',
-    price: '22.99',
-    category: 'Specialty Pizzas',
-  },
-  {
-    id: 'spec-3',
-    name: 'Veggie Supreme',
-    description: 'Mushrooms, onions, green peppers, black olives, tomatoes, and spinach.',
-    price: '21.99',
-    category: 'Specialty Pizzas',
-  },
-  {
-    id: 'spec-4',
-    name: 'Meat Lovers',
-    description: 'Pepperoni, sausage, ham, bacon, and ground beef with extra cheese.',
-    price: '25.99',
-    category: 'Specialty Pizzas',
-    popular: true,
-  },
-  {
-    id: 'spec-5',
-    name: 'Margherita',
-    description: 'Fresh mozzarella, sliced tomatoes, basil, and olive oil on our classic crust.',
-    price: '19.99',
-    category: 'Specialty Pizzas',
-  },
-  {
-    id: 'spec-6',
-    name: 'Hawaiian',
-    description: 'Ham, pineapple, and bacon with our signature tomato sauce.',
-    price: '20.99',
-    category: 'Specialty Pizzas',
-  },
-  // Calzones & Strombolis
-  {
-    id: 'cal-1',
-    name: 'Classic Calzone',
-    description: 'Ricotta, mozzarella, and ham baked in our famous dough. Served with marinara.',
-    price: '14.99',
-    category: 'Calzones & Strombolis',
-  },
-  {
-    id: 'cal-2',
-    name: 'Stromboli Special',
-    description: 'Pepperoni, sausage, peppers, onions, and mozzarella rolled in our dough.',
-    price: '15.99',
-    category: 'Calzones & Strombolis',
-    popular: true,
-  },
-  // Sides
-  {
-    id: 'side-1',
-    name: 'Garlic Breadsticks',
-    description: 'Fresh-baked breadsticks with garlic butter and parmesan. Served with marinara.',
-    price: '6.99',
-    category: 'Sides',
-  },
-  {
-    id: 'side-2',
-    name: 'Cheesy Breadsticks',
-    description: 'Our famous breadsticks loaded with mozzarella and served with ranch.',
-    price: '8.99',
-    category: 'Sides',
-    popular: true,
-  },
-  {
-    id: 'side-3',
-    name: 'Wings (10 pcs)',
-    description: 'Choose from Buffalo, BBQ, or Garlic Parmesan. Served with celery and ranch.',
-    price: '12.99',
-    category: 'Sides',
-  },
-  // Salads
-  {
-    id: 'salad-1',
-    name: 'Caesar Salad',
-    description: 'Romaine lettuce, croutons, parmesan cheese, and our house Caesar dressing.',
-    price: '9.99',
-    category: 'Salads',
-  },
-  {
-    id: 'salad-2',
-    name: 'Garden Salad',
-    description: 'Mixed greens, tomatoes, cucumbers, red onions, olives, and balsamic vinaigrette.',
-    price: '8.99',
-    category: 'Salads',
-  },
-]
+const menuItems: MenuItem[] = menu.map(item => ({
+  ...item,
+  popular: featured.items.includes(item.id)
+}));
 
-const categories = ['All', 'Build Your Own', 'Specialty Pizzas', 'Calzones & Strombolis', 'Sides', 'Salads']
+const categories = ['All', ...Array.from(new Set(menu.map(item => item.category)))]
 
 export default function Menu() {
   const [activeCategory, setActiveCategory] = useState('All')

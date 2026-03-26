@@ -1,4 +1,5 @@
 import { ChefHat, Flame, Leaf } from 'lucide-react'
+import { business } from '../data'
 
 export default function About() {
   return (
@@ -38,11 +39,11 @@ export default function About() {
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
               Crafting Perfect Pizzas Since <span className="text-red-500">1998</span>
             </h2>
-            <p className="text-stone-400 text-lg mb-6 leading-relaxed">
-              The Pie Pizzeria is a beloved branch of a casual local chain famous for its unique, thick-crust pizzas, calzones, and strombolis. We believe in using only the freshest ingredients and time-honored recipes to create unforgettable dining experiences.
+<p className="text-stone-400 text-lg mb-6 leading-relaxed">
+              {business.description} We believe in using only the freshest ingredients and time-honored recipes to create unforgettable dining experiences.
             </p>
             <p className="text-stone-500 mb-8 leading-relaxed">
-              Our menu also features pasta dishes, fresh salads, and hot sandwiches, with various options to accommodate dietary preferences. Whether you're dining in, taking out, or ordering delivery, we bring the authentic taste of Italian-American cuisine right to your table.
+              {business.summary} Whether you're dining in, taking out, or ordering delivery, we bring the authentic taste of Italian-American cuisine right to your table.
             </p>
 
             {/* Features */}

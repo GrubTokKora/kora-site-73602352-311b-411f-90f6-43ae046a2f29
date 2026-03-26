@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Menu, X, Phone } from 'lucide-react'
+import { contact } from '../data'
 
 const navLinks = [
   { name: 'Home', href: '#home' },
@@ -69,8 +70,8 @@ export default function Navbar() {
 
           {/* CTA Button */}
           <div className="hidden md:flex items-center space-x-4">
-            <a 
-              href="tel:+18015551234" 
+<a 
+              href={`tel:${contact.phone}`} 
               className="flex items-center space-x-2 text-stone-300 hover:text-white transition-colors duration-300"
             >
               <Phone className="w-4 h-4" />

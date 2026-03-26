@@ -1,4 +1,5 @@
 import { Facebook, Instagram, Twitter, Youtube, Heart } from 'lucide-react'
+import { socialMedia, contact } from '../data'
 
 const footerLinks = {
   menu: [
@@ -21,11 +22,11 @@ const footerLinks = {
 }
 
 const socialLinks = [
-  { name: 'Facebook', icon: Facebook, href: '#' },
-  { name: 'Instagram', icon: Instagram, href: '#' },
-  { name: 'Twitter', icon: Twitter, href: '#' },
-  { name: 'YouTube', icon: Youtube, href: '#' },
-]
+  { name: 'Facebook', icon: Facebook, href: socialMedia.facebook },
+  { name: 'Instagram', icon: Instagram, href: socialMedia.instagram },
+  { name: 'Twitter', icon: Twitter, href: socialMedia.twitter },
+  { name: 'YouTube', icon: Youtube, href: socialMedia.youtube },
+].filter(link => link.href && link.href !== '#');
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
@@ -98,17 +99,17 @@ export default function Footer() {
           {/* Contact Info */}
           <div>
             <h3 className="text-white font-semibold mb-4">Contact</h3>
-            <ul className="space-y-3 text-sm text-stone-400">
-              <li>3321 S 200 E</li>
-              <li>South Salt Lake, UT 84115</li>
+<ul className="space-y-3 text-sm text-stone-400">
+              <li>{contact.address.split(',')[0].trim()}</li>
+              <li>{contact.address.split(',').slice(1, -1).join(',').trim()}</li>
               <li className="pt-2">
-                <a href="tel:+18015551234" className="hover:text-red-500 transition-colors">
-                  (801) 555-1234
+                <a href={`tel:${contact.phone}`} className="hover:text-red-500 transition-colors">
+                  {contact.phone}
                 </a>
               </li>
               <li>
-                <a href="mailto:info@thepie.com" className="hover:text-red-500 transition-colors">
-                  info@thepie.com
+                <a href={`mailto:${contact.email}`} className="hover:text-red-500 transition-colors">
+                  {contact.email}
                 </a>
               </li>
             </ul>

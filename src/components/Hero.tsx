@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronRight, Star } from 'lucide-react'
+import { hero, actions } from '../data'
 
 interface HeroProps {
   businessId: string
@@ -30,8 +31,8 @@ export default function Hero({ businessId }: HeroProps) {
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=1981&auto=format&fit=crop"
+<img 
+          src={hero.backgroundImage}
           alt="Delicious pizza"
           className="w-full h-full object-cover"
         />
@@ -63,12 +64,12 @@ export default function Hero({ businessId }: HeroProps) {
           The Pie <span className="gradient-text">Pizzeria</span>
         </h1>
 
-        <p 
+<p 
           className={`text-xl md:text-2xl text-stone-300 max-w-3xl mx-auto mb-4 font-light transition-all duration-1000 delay-300 ${
             isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}
         >
-          South Salt Lake's favorite spot for thick-crust masterpieces, calzones, and strombolis.
+          {hero.subtitle}
         </p>
 
         <p 
@@ -85,18 +86,18 @@ export default function Hero({ businessId }: HeroProps) {
             isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}
         >
-          <button 
+<button 
             onClick={scrollToMenu}
             className="group bg-red-600 hover:bg-red-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-red-600/25 flex items-center space-x-2"
           >
-            <span>View Menu</span>
+            <span>{actions.primaryCtaLabel}</span>
             <ChevronRight className="w-5 h-5 transform group-hover:translate-x-1 transition-transform" />
           </button>
           <button 
             onClick={scrollToContact}
             className="bg-transparent border-2 border-white/30 hover:border-white text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 hover:bg-white/10"
           >
-            Order Online
+            {actions.secondaryCtaLabel}
           </button>
         </div>
 

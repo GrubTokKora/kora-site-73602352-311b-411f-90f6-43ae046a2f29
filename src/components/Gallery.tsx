@@ -1,38 +1,12 @@
 import { useState } from 'react'
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { gallery } from '../data'
 
-const galleryImages = [
-  {
-    src: "https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?q=80&w=1935&auto=format&fit=crop",
-    alt: "Delicious pepperoni pizza",
-    caption: "Signature Pepperoni"
-  },
-  {
-    src: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=1981&auto=format&fit=crop",
-    alt: "Fresh pizza from oven",
-    caption: "Fresh from the Oven"
-  },
-  {
-    src: "https://deveusblob.blob.core.windows.net/kora-business-images/user-media/73602352-311b-411f-90f6-43ae046a2f29/10ba98a4-a410-4015-99d9-701074e2e5bc/1773406172_3rhcb8.jpeg",
-    alt: "Restaurant interior",
-    caption: "Cozy Atmosphere"
-  },
-  {
-    src: "https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=2070&auto=format&fit=crop",
-    alt: "Pizza preparation",
-    caption: "Handcrafted with Love"
-  },
-  {
-    src: "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?q=80&w=2069&auto=format&fit=crop",
-    alt: "Ingredients",
-    caption: "Fresh Ingredients"
-  },
-  {
-    src: "https://images.unsplash.com/photo-1595708684082-a173bb3a06c5?q=80&w=2069&auto=format&fit=crop",
-    alt: "Calzone",
-    caption: "Famous Calzones"
-  }
-]
+const galleryImages = gallery.map((src, index) => ({
+  src,
+  alt: `Gallery image ${index + 1} of The Pie Pizzeria`,
+  caption: ["Signature Pizzas", "Fresh From The Oven", "Our Cozy Atmosphere", "Handcrafted With Love", "Quality Ingredients", "More Than Just Pizza"][index % 6] || "A taste of The Pie Pizzeria"
+}));
 
 export default function Gallery() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
