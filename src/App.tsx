@@ -9,6 +9,7 @@ import Contact from './components/Contact'
 import Footer from './components/Footer'
 import VoiceAgentWidget from './components/VoiceAgentWidget'
 
+
 import { BUSINESS_ID } from './utils/api'
 
 function App() {
@@ -46,7 +47,7 @@ return (
         <Gallery />
         <Hours />
         <Contact businessId={BUSINESS_ID} />
-      </main>
+</main>
       <Footer />
       <VoiceAgentWidget />
     </div>
