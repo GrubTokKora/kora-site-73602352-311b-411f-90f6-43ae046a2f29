@@ -52,6 +52,24 @@ function base64FromInt16LE(pcm16: Int16Array): string {
   return btoa(binary)
 }
 
+function toFriendlyVoiceError(raw: unknown): string {
+  const text = typeof raw === 'string' ? raw : ''
+  const lower = text.toLowerCase()
+  if (
+    lower.includes('statuscode.unavailable') ||
+    lower.includes('grpc_status:14') ||
+    lower.includes('service unavailable') ||
+    lower.includes('aiorpcerror')
+  ) {
+    return 'Voice service is temporarily unavailable. Please try again in a moment.'
+  }
+  if (lower.includes('network') || lower.includes('connection')) {
+    return 'We could not connect right now. Please check your internet and try again.'
+  }
+  if (!text.trim()) return 'Voice assistant is currently unavailable. Please try again.'
+  return text
+}
+
 export function useVoiceAgent() {
   const [agentState, setAgentState] = useState<AgentState>('idle')
   const [messages, setMessages] = useState<VoiceMessage[]>([])
@@ -62,6 +80,7 @@ export function useVoiceAgent() {
   const wsRef = useRef<WebSocket | null>(null)
   const sessionRef = useRef<Record<string, unknown> | null>(null)
   const sessionOutputRateRef = useRef(24000)
+  const bootstrapRef = useRef<any>(null)
 
   const micStreamRef = useRef<MediaStream | null>(null)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -73,6 +92,7 @@ export function useVoiceAgent() {
   const assistantDraftRef = useRef('')
   const lastTranscriptTurnKeyRef = useRef('')
   const lastUserItemIdRef = useRef('')
+  const greetedRef = useRef(false)
 
   const agentStateRef = useRef<AgentState>('idle')
   useEffect(() => {
@@ -206,6 +226,35 @@ export function useVoiceAgent() {
       switch (data.type) {
         case 'session.updated':
           setAgentState('listening')
+          // Speak first: ask the model to produce output immediately.
+          // Official xAI flow: create a conversation item, then request a response.
+          try {
+            const ws = wsRef.current
+            if (ws && ws.readyState === WebSocket.OPEN && !greetedRef.current) {
+              greetedRef.current = true
+              const greeting = String(bootstrapRef.current?.initial_greeting || '').trim()
+              if (greeting) {
+                ws.send(
+                  JSON.stringify({
+                    type: 'conversation.item.create',
+                    item: {
+                      type: 'message',
+                      role: 'user',
+                      content: [
+                        {
+                          type: 'input_text',
+                          text: `Please greet the visitor by saying exactly: "${greeting}"`,
+                        },
+                      ],
+                    },
+                  }),
+                )
+              }
+              ws.send(JSON.stringify({ type: 'response.create', response: { modalities: ['text', 'audio'] } }))
+            }
+          } catch {
+            /* ignore */
+          }
           void startMicPipelineRef.current()
           break
 
@@ -288,9 +337,11 @@ export function useVoiceAgent() {
 
         case 'error':
           setError(
-            (typeof data.error?.message === 'string' && data.error.message) ||
-              (typeof data.message === 'string' && data.message) ||
-              'Voice agent error',
+            toFriendlyVoiceError(
+              (typeof data.error?.message === 'string' && data.error.message) ||
+                (typeof data.message === 'string' && data.message) ||
+                'Voice agent error',
+            ),
           )
           setAgentState('error')
           break
@@ -327,6 +378,7 @@ export function useVoiceAgent() {
     assistantDraftRef.current = ''
     lastTranscriptTurnKeyRef.current = ''
     lastUserItemIdRef.current = ''
+    greetedRef.current = false
     setAssistantStreaming('')
     setAgentState('idle')
     setError(null)
@@ -342,13 +394,15 @@ export function useVoiceAgent() {
     assistantDraftRef.current = ''
     setAssistantStreaming('')
 
-    const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US'
+    // Default to xAI automatic language detection.
+    const locale = 'auto'
 
     try {
       const bootstrap: any = await createVoiceSession(locale, {
         url: typeof window !== 'undefined' ? window.location.href : '',
         title: typeof document !== 'undefined' ? document.title : '',
       } as Record<string, unknown>)
+      bootstrapRef.current = bootstrap
 
       const { websocket_url, client_secret, session } = bootstrap
       if (!websocket_url || !client_secret) throw new Error('Invalid voice session response')
@@ -378,7 +432,7 @@ export function useVoiceAgent() {
       }
 
       ws.onerror = () => {
-        setError('Connection error.')
+        setError('We could not connect to the voice assistant right now. Please try again.')
         setAgentState('error')
       }
 
@@ -390,7 +444,7 @@ export function useVoiceAgent() {
       }
     } catch (e) {
       console.error(e)
-      setError((e as Error).message || 'Failed to start session.')
+      setError(toFriendlyVoiceError((e as Error).message || 'Failed to start session.'))
       setAgentState('error')
     }
   }, [handleRealtimeEvent, stopSession])

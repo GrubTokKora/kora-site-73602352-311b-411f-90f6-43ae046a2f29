@@ -1,158 +1,151 @@
-import { useState, useEffect, useRef } from 'react';
-import type { ReactNode } from 'react';
-import { Mic, Bot, User, X, Loader2, Volume2, AlertTriangle } from 'lucide-react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { Mic, Bot, X, Loader } from 'lucide-react';
 import { useVoiceAgent } from '../hooks/useVoiceAgent';
-import type { AgentState, VoiceMessage } from '../hooks/useVoiceAgent';
 
-const AgentStatusIndicator = ({ state }: { state: AgentState }) => {
-  const statusMap: Record<AgentState, { text: string; icon: ReactNode; color: string }> = {
-    idle: { text: 'Tap to speak', icon: <Mic className="w-6 h-6" />, color: 'bg-red-600' },
-    connecting: { text: 'Connecting...', icon: <Loader2 className="w-6 h-6 animate-spin" />, color: 'bg-blue-500' },
-    listening: { text: 'Listening...', icon: <Volume2 className="w-6 h-6 animate-pulse" />, color: 'bg-green-500' },
-    speaking: { text: 'Speaking...', icon: <Bot className="w-6 h-6" />, color: 'bg-purple-500' },
-    thinking: { text: 'Thinking...', icon: <Loader2 className="w-6 h-6 animate-spin" />, color: 'bg-yellow-500' },
-    error: { text: 'Error', icon: <AlertTriangle className="w-6 h-6" />, color: 'bg-gray-500' },
-  };
-
-  const { text, icon, color } = statusMap[state] || statusMap.idle;
-
-  return (
-    <div className="flex flex-col items-center justify-center text-center">
-      <button
-        className={`w-20 h-20 rounded-full flex items-center justify-center text-white transition-all duration-300 shadow-lg ${color}`}
-      >
-        {icon}
-      </button>
-      <p className="mt-4 text-sm text-stone-400">{text}</p>
-    </div>
-  );
-};
-
-const MessageBubble = ({ message }: { message: VoiceMessage }) => {
-  const isAgent = message.sender === 'agent';
-  return (
-    <div className={`flex items-start gap-3 ${isAgent ? '' : 'justify-end'}`}>
-      {isAgent && (
-        <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
-          <Bot className="w-5 h-5 text-red-500" />
-        </div>
-      )}
-      <div
-        className={`max-w-xs md:max-w-md px-4 py-3 rounded-2xl ${
-          isAgent
-            ? 'bg-stone-700 text-stone-200 rounded-tl-none'
-            : 'bg-red-600 text-white rounded-br-none'
-        }`}
-      >
-        <p className="text-sm leading-relaxed">{message.text}</p>
-      </div>
-      {!isAgent && (
-        <div className="w-8 h-8 rounded-full bg-stone-600 flex items-center justify-center flex-shrink-0">
-          <User className="w-5 h-5 text-stone-300" />
-        </div>
-      )}
-    </div>
-  );
-};
+function isVoiceFeatureEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  const v = (window as any).KORA_CONFIG?.features?.voice as unknown;
+  return Boolean(v && typeof v === 'object' && (v as { enabled?: boolean }).enabled === true);
+}
 
 export default function VoiceAgentWidget() {
+  const visible = useMemo(() => isVoiceFeatureEnabled(), []);
   const [isOpen, setIsOpen] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  const { agentState, messages, assistantStreaming, error, startSession, stopSession } = useVoiceAgent();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Check runtime config to decide if the widget should be visible at all.
-    if ((window as any).KORA_CONFIG?.features?.voice?.enabled === true) {
-      setIsVisible(true);
-    }
-  }, []);
+  const {
+    agentState,
+    messages,
+    assistantStreaming,
+    error,
+    startSession,
+    stopSession,
+  } = useVoiceAgent();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    if (isOpen) {
-      startSession();
-    } else {
-      stopSession();
-    }
-  }, [isOpen, startSession, stopSession]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollToBottom();
   }, [messages, assistantStreaming]);
 
-  if (!isVisible) {
-    return null;
-  }
+  const handleToggle = () => {
+    setIsOpen(prev => {
+      if (prev) {
+        stopSession();
+        return false;
+      } else {
+        startSession();
+        return true;
+      }
+    });
+  };
 
-  const toggleOpen = () => setIsOpen(!isOpen);
+  const handleClose = () => {
+    stopSession();
+    setIsOpen(false);
+  };
+
+  if (!visible) return null;
+
+  const isLoading = agentState === 'connecting';
+  const isConnected = agentState === 'listening' || agentState === 'speaking' || agentState === 'thinking';
+  const isError = agentState === 'error';
+
+  const getFooterText = () => {
+    switch (agentState) {
+      case 'connecting': return 'Connecting...';
+      case 'listening': return 'Listening...';
+      case 'speaking': return 'Speaking...';
+      case 'thinking': return 'Thinking...';
+      case 'error': return 'Connection failed';
+      case 'idle': return 'Tap to start';
+      default: return 'Tap to start';
+    }
+  };
 
   return (
     <>
-      {/* Floating Action Button */}
       <button
-        onClick={toggleOpen}
-        className={`fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-red-600 text-white flex items-center justify-center shadow-2xl shadow-red-600/30 transition-all duration-300 transform hover:scale-110 hover:bg-red-700 ${
-          isOpen ? 'opacity-0 scale-75' : 'opacity-100 scale-100'
-        }`}
+        onClick={handleToggle}
+        className="fixed bottom-6 right-6 bg-red-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center z-50 hover:bg-red-700 transition-transform transform hover:scale-110"
         aria-label="Open Voice Assistant"
       >
-        <Mic className="w-7 h-7" />
+        <Bot className="w-8 h-8" />
       </button>
 
-      {/* Widget Window */}
-      <div
-        className={`fixed bottom-6 right-6 z-50 w-[calc(100vw-2rem)] max-w-md h-[70vh] max-h-[600px] bg-stone-900/80 backdrop-blur-xl border border-stone-700 rounded-2xl shadow-2xl flex flex-col transition-all duration-500 ease-in-out ${
-          isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
-        }`}
-      >
-        {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b border-stone-700 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center">
-              <Bot className="w-5 h-5 text-red-500" />
-            </div>
-            <h2 className="text-lg font-bold text-white">Voice Assistant</h2>
-          </div>
-          <button
-            onClick={toggleOpen}
-            className="p-2 text-stone-400 hover:text-white hover:bg-stone-700 rounded-full transition-colors"
-            aria-label="Close Voice Assistant"
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-fade-in"
+          onClick={handleClose}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full h-full md:w-[400px] md:max-h-[70vh] md:h-auto bg-stone-900/95 backdrop-blur-xl border border-stone-700 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-in-up"
+            style={{ minHeight: '400px' }}
           >
-            <X className="w-5 h-5" />
-          </button>
-        </header>
-
-        {/* Messages */}
-        <div className="flex-1 p-4 overflow-y-auto">
-          <div className="space-y-4">
-            {messages.map((msg, i) => (
-              <MessageBubble key={i} message={msg} />
-            ))}
-            {assistantStreaming && (
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-5 h-5 text-red-500" />
-                </div>
-                <div className="max-w-xs md:max-w-md px-4 py-3 rounded-2xl bg-stone-700 text-stone-200 rounded-tl-none">
-                  <p className="text-sm leading-relaxed">{assistantStreaming}<span className="inline-block w-1 h-4 bg-white ml-1 animate-pulse"></span></p>
-                </div>
+            <header className="flex items-center justify-between p-4 border-b border-stone-700 flex-shrink-0">
+              <div className="flex items-center space-x-3">
+                <Bot className="w-6 h-6 text-red-500" />
+                <h2 className="text-lg font-bold text-white">Voice Assistant</h2>
               </div>
-            )}
-            <div ref={messagesEndRef} />
+              <button
+                onClick={handleClose}
+                className="p-2 text-stone-400 hover:text-white hover:bg-stone-700 rounded-full"
+                aria-label="Close voice assistant"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </header>
+
+            <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {messages.map((m, idx) => (
+                <div key={idx} className={`flex items-end gap-2 ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {m.sender === 'agent' ? (
+                    <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
+                      <Bot className="w-5 h-5 text-red-500" />
+                    </div>
+                  ) : null}
+                  <div className={`max-w-[80%] p-3 rounded-2xl ${m.sender === 'user' ? 'bg-red-600 text-white rounded-br-none' : 'bg-stone-800 text-stone-200 rounded-bl-none'}`}>
+                    <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+                  </div>
+                </div>
+              ))}
+
+              {assistantStreaming.trim() ? (
+                <div className="flex items-end gap-2 justify-start">
+                  <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div className="max-w-[80%] p-3 rounded-2xl bg-stone-800 text-stone-200 rounded-bl-none border border-stone-600/60">
+                    <p className="text-sm whitespace-pre-wrap">{assistantStreaming}</p>
+                  </div>
+                </div>
+              ) : null}
+
+              {isLoading && messages.length === 0 ? <div className="text-center text-stone-400 text-sm">Connecting...</div> : null}
+              {isError && error ? (
+                <div className="p-3 bg-red-900/50 border border-red-500/30 text-red-300 rounded-lg text-sm">{error}</div>
+              ) : null}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <footer className="p-6 flex flex-col items-center justify-center border-t border-stone-700 flex-shrink-0">
+              <button
+                onClick={startSession}
+                disabled={isLoading || isConnected}
+                className="bg-red-600 text-white w-20 h-20 rounded-full flex items-center justify-center disabled:bg-stone-700"
+              >
+                {isLoading ? <Loader className="w-8 h-8 animate-spin" /> : <Mic className="w-8 h-8" />}
+              </button>
+              <p className="text-xs text-stone-500 mt-3">
+                {getFooterText()}
+              </p>
+            </footer>
           </div>
         </div>
-
-        {/* Footer / Controls */}
-        <footer className="p-6 border-t border-stone-700 flex-shrink-0">
-          {error ? (
-            <div className="text-center text-red-400 text-sm p-3 bg-red-500/10 rounded-lg">
-              <p>{error}</p>
-            </div>
-          ) : (
-            <AgentStatusIndicator state={agentState} />
-          )}
-        </footer>
-      </div>
+      )}
     </>
   );
 }

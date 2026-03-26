@@ -9,24 +9,7 @@ const rootEl = document.getElementById('root')
 const BUSINESS_ID =
   rootEl?.getAttribute('data-kora-business-id') ?? '__KORA_BUSINESS_ID__'
 
-declare global {
-  interface Window {
-    KORA_SITE?: {
-      businessId: string
-    }
-    KORA_CONFIG?: {
-      apiBaseUrl?: string
-      features?: {
-        voice?: {
-          enabled?: boolean
-          provider?: string
-        }
-      }
-      // Other runtime configuration fields may be added by the backend.
-      // This object is intended for environment-specific, non-secret public config.
-    }
-  }
-}
+// Global window types are defined in src/vite-env.d.ts
 
 // Expose stable globals for any runtime code that needs them.
 // The backend is responsible for ensuring window.KORA_CONFIG.apiBaseUrl is set

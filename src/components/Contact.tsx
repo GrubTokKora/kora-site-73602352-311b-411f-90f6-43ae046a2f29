@@ -8,11 +8,7 @@ interface ContactProps {
   businessId: string
 }
 
-declare global {
-  interface Window {
-    grecaptcha: any;
-  }
-}
+// Global window types are defined in src/vite-env.d.ts
 
 export default function Contact({ businessId }: ContactProps) {
   const [formData, setFormData] = useState({
