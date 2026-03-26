@@ -31,12 +31,12 @@ export default function Hero({ businessId }: HeroProps) {
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
-<img 
+        <img 
           src={hero.backgroundImage}
           alt="Delicious pizza"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-linear-gradient(to bottom, rgba(18, 24, 31, 0.8), rgba(18, 24, 31, 0.6), rgba(18, 24, 31, 1))" />
+        <div className="absolute inset-0 bg-gradient-to-b from-stone-950/80 via-black/50 to-stone-950" />
       </div>
 
       {/* Content */}
@@ -57,15 +57,15 @@ export default function Hero({ businessId }: HeroProps) {
 
         {/* Main Heading */}
         <h1 
-          className={`text-5xl md:text-7xl lg:text-8xl font-black text-white mb-6 leading-tight transition-all duration-1000 delay-200 ${
+          className={`text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 leading-snug md:leading-tight transition-all duration-1000 delay-200 ${
             isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}
         >
           The Pie <span className="gradient-text">Pizzeria</span>
         </h1>
 
-<p 
-          className={`text-xl md:text-2xl text-stone-300 max-w-3xl mx-auto mb-4 font-light transition-all duration-1000 delay-300 ${
+        <p 
+          className={`text-xl md:text-2xl text-stone-200 max-w-3xl mx-auto mb-6 font-normal transition-all duration-1000 delay-300 ${
             isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}
         >
@@ -73,7 +73,7 @@ export default function Hero({ businessId }: HeroProps) {
         </p>
 
         <p 
-          className={`text-stone-400 max-w-2xl mx-auto mb-12 transition-all duration-1000 delay-400 ${
+          className={`text-base md:text-lg text-stone-300 max-w-2xl mx-auto mb-12 leading-relaxed transition-all duration-1000 delay-400 ${
             isLoaded ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}
         >

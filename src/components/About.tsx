@@ -36,13 +36,13 @@ export default function About() {
             <div className="inline-block px-4 py-1 bg-red-600/10 text-red-500 rounded-full text-sm font-semibold uppercase tracking-wider mb-4">
               Our Story
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-snug">
               Crafting Perfect Pizzas Since <span className="text-red-500">1998</span>
             </h2>
-<p className="text-stone-400 text-lg mb-6 leading-relaxed">
+            <p className="text-stone-300 text-lg mb-6 leading-relaxed">
               {business.description} We believe in using only the freshest ingredients and time-honored recipes to create unforgettable dining experiences.
             </p>
-            <p className="text-stone-500 mb-8 leading-relaxed">
+            <p className="text-stone-400 mb-8 leading-relaxed">
               {business.summary} Whether you're dining in, taking out, or ordering delivery, we bring the authentic taste of Italian-American cuisine right to your table.
             </p>
 
