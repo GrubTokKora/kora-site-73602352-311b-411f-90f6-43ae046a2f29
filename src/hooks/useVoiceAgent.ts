@@ -343,7 +343,8 @@ export function useVoiceAgent() {
     assistantDraftRef.current = ''
     setAssistantStreaming('')
 
-    const locale = typeof navigator !== 'undefined' ? navigator.language : 'en-US'
+    // Use Grok/xAI automatic language detection for multilingual conversations.
+    const locale = 'auto'
 
     try {
       const bootstrap: any = await createVoiceSession(locale, {
