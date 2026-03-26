@@ -449,6 +449,43 @@ export function useVoiceAgent() {
     }
   }, [handleRealtimeEvent, stopSession])
 
+  const sendText = useCallback((text: string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      setError('Cannot send message: not connected.');
+      return;
+    }
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      return;
+    }
+
+    // Add user message to UI
+    appendUserTranscript(trimmedText);
+
+    // Send to backend
+    try {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'conversation.item.create',
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: trimmedText }],
+          },
+        }),
+      );
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'response.create',
+          response: { modalities: ['text', 'audio'] },
+        }),
+      );
+    } catch (e) {
+      console.error('Failed to send text message:', e);
+      setError('Failed to send message.');
+    }
+  }, [appendUserTranscript]);
+
   useEffect(() => () => stopSession(), [stopSession])
 
   return {
@@ -458,5 +495,6 @@ export function useVoiceAgent() {
     error,
     startSession,
     stopSession,
+    sendText,
   }
 }

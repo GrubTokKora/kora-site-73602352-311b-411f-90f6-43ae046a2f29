@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Mic, Bot, X, Loader } from 'lucide-react';
+import type { KeyboardEvent } from 'react';
+import { Mic, Bot, X, Loader, Send } from 'lucide-react';
 import { useVoiceAgent } from '../hooks/useVoiceAgent';
 
 function isVoiceFeatureEnabled(): boolean {
@@ -20,7 +21,10 @@ export default function VoiceAgentWidget() {
     error,
     startSession,
     stopSession,
+    sendText,
   } = useVoiceAgent();
+
+  const [textInput, setTextInput] = useState('');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,6 +49,19 @@ export default function VoiceAgentWidget() {
   const handleClose = () => {
     stopSession();
     setIsOpen(false);
+  };
+
+  const handleSendText = () => {
+    if (textInput.trim()) {
+      sendText(textInput.trim());
+      setTextInput('');
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSendText();
+    }
   };
 
   if (!visible) return null;
@@ -131,17 +148,37 @@ export default function VoiceAgentWidget() {
               <div ref={messagesEndRef} />
             </div>
 
-            <footer className="p-6 flex flex-col items-center justify-center border-t border-stone-700 flex-shrink-0">
-              <button
-                onClick={startSession}
-                disabled={isLoading || isConnected}
-                className="bg-red-600 text-white w-20 h-20 rounded-full flex items-center justify-center disabled:bg-stone-700"
-              >
-                {isLoading ? <Loader className="w-8 h-8 animate-spin" /> : <Mic className="w-8 h-8" />}
-              </button>
-              <p className="text-xs text-stone-500 mt-3">
-                {getFooterText()}
-              </p>
+            <footer className="p-4 border-t border-stone-700 flex-shrink-0 space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type a message..."
+                  className="w-full px-4 py-2 bg-stone-800 border border-stone-700 rounded-full text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-300"
+                  disabled={!isConnected && !isError}
+                />
+                <button
+                  onClick={handleSendText}
+                  disabled={!textInput.trim() || (!isConnected && !isError)}
+                  className="bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 disabled:bg-stone-700 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="flex flex-col items-center justify-center">
+                <button
+                  onClick={startSession}
+                  disabled={isLoading || isConnected}
+                  className="bg-red-600 text-white w-16 h-16 rounded-full flex items-center justify-center disabled:bg-stone-700"
+                >
+                  {isLoading ? <Loader className="w-8 h-8 animate-spin" /> : <Mic className="w-8 h-8" />}
+                </button>
+                <p className="text-xs text-stone-500 mt-2">
+                  {getFooterText()}
+                </p>
+              </div>
             </footer>
           </div>
         </div>
