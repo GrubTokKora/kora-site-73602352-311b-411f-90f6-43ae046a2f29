@@ -71,6 +71,7 @@ function toFriendlyVoiceError(raw: unknown): string {
 }
 
 export function useVoiceAgent() {
+  const AUTO_STOP_MS = 15000
   const [agentState, setAgentState] = useState<AgentState>('idle')
   const [messages, setMessages] = useState<VoiceMessage[]>([])
   /** In-progress assistant text (same turn as latest transcript deltas). */
@@ -93,6 +94,7 @@ export function useVoiceAgent() {
   const lastTranscriptTurnKeyRef = useRef('')
   const lastUserItemIdRef = useRef('')
   const greetedRef = useRef(false)
+  const autoStopTimerRef = useRef<number | null>(null)
 
   const agentStateRef = useRef<AgentState>('idle')
   useEffect(() => {
@@ -166,6 +168,7 @@ export function useVoiceAgent() {
   }, [])
 
   const startMicPipelineRef = useRef<() => Promise<void>>(async () => {})
+  const stopSessionRef = useRef<() => void>(() => {})
 
   const startMicPipeline = useCallback(async () => {
     const ws = wsRef.current
@@ -185,7 +188,7 @@ export function useVoiceAgent() {
       if (ctx.state === 'suspended') await ctx.resume()
       nextPlayTimeRef.current = ctx.currentTime
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const stream = micStreamRef.current ?? (await navigator.mediaDevices.getUserMedia({ audio: true }))
       micStreamRef.current = stream
 
       const src = ctx.createMediaStreamSource(stream)
@@ -226,6 +229,12 @@ export function useVoiceAgent() {
       switch (data.type) {
         case 'session.updated':
           setAgentState('listening')
+          if (autoStopTimerRef.current != null) {
+            window.clearTimeout(autoStopTimerRef.current)
+          }
+          autoStopTimerRef.current = window.setTimeout(() => {
+            stopSessionRef.current()
+          }, AUTO_STOP_MS)
           // Speak first: ask the model to produce output immediately.
           // Official xAI flow: create a conversation item, then request a response.
           try {
@@ -353,10 +362,14 @@ export function useVoiceAgent() {
           }
       }
     },
-    [appendUserTranscript, flushAgentTranscriptToMessages, processAudioQueue],
+    [appendUserTranscript, flushAgentTranscriptToMessages, processAudioQueue, AUTO_STOP_MS],
   )
 
   const stopSession = useCallback(() => {
+    if (autoStopTimerRef.current != null) {
+      window.clearTimeout(autoStopTimerRef.current)
+      autoStopTimerRef.current = null
+    }
     wsRef.current?.close()
     wsRef.current = null
     sessionRef.current = null
@@ -383,6 +396,7 @@ export function useVoiceAgent() {
     setAgentState('idle')
     setError(null)
   }, [])
+  stopSessionRef.current = stopSession
 
   const startSession = useCallback(async () => {
     if (agentStateRef.current !== 'idle' && agentStateRef.current !== 'error') return
@@ -398,6 +412,10 @@ export function useVoiceAgent() {
     const locale = 'auto'
 
     try {
+      // Respect user consent first: do not call /session before mic permission is granted.
+      const preGrantedMic = await navigator.mediaDevices.getUserMedia({ audio: true })
+      micStreamRef.current = preGrantedMic
+
       const bootstrap: any = await createVoiceSession(locale, {
         url: typeof window !== 'undefined' ? window.location.href : '',
         title: typeof document !== 'undefined' ? document.title : '',
@@ -444,47 +462,16 @@ export function useVoiceAgent() {
       }
     } catch (e) {
       console.error(e)
+      try {
+        micStreamRef.current?.getTracks().forEach((t) => t.stop())
+      } catch {
+        /* ignore */
+      }
+      micStreamRef.current = null
       setError(toFriendlyVoiceError((e as Error).message || 'Failed to start session.'))
       setAgentState('error')
     }
   }, [handleRealtimeEvent, stopSession])
-
-  const sendText = useCallback((text: string) => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      setError('Cannot send message: not connected.');
-      return;
-    }
-    const trimmedText = text.trim();
-    if (!trimmedText) {
-      return;
-    }
-
-    // Add user message to UI
-    appendUserTranscript(trimmedText);
-
-    // Send to backend
-    try {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'conversation.item.create',
-          item: {
-            type: 'message',
-            role: 'user',
-            content: [{ type: 'input_text', text: trimmedText }],
-          },
-        }),
-      );
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'response.create',
-          response: { modalities: ['text', 'audio'] },
-        }),
-      );
-    } catch (e) {
-      console.error('Failed to send text message:', e);
-      setError('Failed to send message.');
-    }
-  }, [appendUserTranscript]);
 
   useEffect(() => () => stopSession(), [stopSession])
 
@@ -495,6 +482,5 @@ export function useVoiceAgent() {
     error,
     startSession,
     stopSession,
-    sendText,
   }
 }

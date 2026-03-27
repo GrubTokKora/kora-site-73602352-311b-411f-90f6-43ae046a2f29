@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import type { KeyboardEvent } from 'react';
-import { Mic, Bot, X, Loader, Send } from 'lucide-react';
+import { Mic, Bot, X, Loader2, Volume2, BrainCircuit, AlertTriangle, Ear } from 'lucide-react';
 import { useVoiceAgent } from '../hooks/useVoiceAgent';
 
 function isVoiceFeatureEnabled(): boolean {
@@ -21,10 +20,7 @@ export default function VoiceAgentWidget() {
     error,
     startSession,
     stopSession,
-    sendText,
   } = useVoiceAgent();
-
-  const [textInput, setTextInput] = useState('');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,36 +47,36 @@ export default function VoiceAgentWidget() {
     setIsOpen(false);
   };
 
-  const handleSendText = () => {
-    if (textInput.trim()) {
-      sendText(textInput.trim());
-      setTextInput('');
-    }
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSendText();
-    }
-  };
-
   if (!visible) return null;
 
-  const isLoading = agentState === 'connecting';
-  const isConnected = agentState === 'listening' || agentState === 'speaking' || agentState === 'thinking';
-  const isError = agentState === 'error';
+  const statusIcon = {
+    idle: <Mic className="w-4 h-4" />,
+    connecting: <Loader2 className="w-4 h-4 animate-spin" />,
+    listening: <Ear className="w-4 h-4" />,
+    speaking: <Volume2 className="w-4 h-4" />,
+    thinking: <BrainCircuit className="w-4 h-4" />,
+    error: <AlertTriangle className="w-4 h-4" />,
+  }[agentState];
 
-  const getFooterText = () => {
-    switch (agentState) {
-      case 'connecting': return 'Connecting...';
-      case 'listening': return 'Listening...';
-      case 'speaking': return 'Speaking...';
-      case 'thinking': return 'Thinking...';
-      case 'error': return 'Connection failed';
-      case 'idle': return 'Tap to start';
-      default: return 'Tap to start';
-    }
-  };
+  const statusLabel = {
+    idle: 'Idle',
+    connecting: 'Connecting',
+    listening: 'Listening',
+    speaking: 'Speaking',
+    thinking: 'Thinking',
+    error: 'Error',
+  }[agentState];
+
+  const statusTone =
+    agentState === 'error'
+      ? 'text-red-300 border-red-500/40 bg-red-950/30'
+      : agentState === 'connecting'
+        ? 'text-amber-300 border-amber-500/40 bg-amber-950/20'
+        : agentState === 'thinking'
+          ? 'text-yellow-300 border-yellow-500/40 bg-yellow-950/20'
+          : agentState === 'speaking'
+            ? 'text-sky-300 border-sky-500/40 bg-sky-950/20'
+        : 'text-emerald-300 border-emerald-500/30 bg-emerald-950/20';
 
   return (
     <>
@@ -89,7 +85,7 @@ export default function VoiceAgentWidget() {
         className="fixed bottom-6 right-6 bg-red-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center z-50 hover:bg-red-700 transition-transform transform hover:scale-110"
         aria-label="Open Voice Assistant"
       >
-        <Bot className="w-8 h-8" />
+        <Mic className="w-8 h-8" />
       </button>
 
       {isOpen && (
@@ -103,9 +99,9 @@ export default function VoiceAgentWidget() {
             style={{ minHeight: '400px' }}
           >
             <header className="flex items-center justify-between p-4 border-b border-stone-700 flex-shrink-0">
-              <div className="flex items-center space-x-3">
-                <Bot className="w-6 h-6 text-red-500" />
-                <h2 className="text-lg font-bold text-white">Voice Assistant</h2>
+              <div>
+                <h2 className="text-sm font-bold text-white">Voice Assistant</h2>
+                <p className="text-xs text-stone-400">Powered by Kora</p>
               </div>
               <button
                 onClick={handleClose}
@@ -117,11 +113,30 @@ export default function VoiceAgentWidget() {
             </header>
 
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
+              {messages.length === 0 && !assistantStreaming.trim() && agentState !== 'error' && (
+                <div className="min-h-[160px] flex flex-col items-center justify-center text-center gap-3">
+                  {agentState === 'connecting' ? (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-red-300 via-red-500 to-red-900 animate-pulse" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+                      <Ear className="w-5 h-5 text-emerald-300" />
+                    </div>
+                  )}
+                  <p className="text-sm font-semibold text-white">
+                    {agentState === 'connecting' ? 'Connecting...' : 'Ask me anything'}
+                  </p>
+                  <p className="text-xs text-stone-400">
+                    {agentState === 'connecting'
+                      ? 'Preparing your voice assistant'
+                      : 'Start speaking and I will respond instantly'}
+                  </p>
+                </div>
+              )}
               {messages.map((m, idx) => (
                 <div key={idx} className={`flex items-end gap-2 ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {m.sender === 'agent' ? (
-                    <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
-                      <Bot className="w-5 h-5 text-red-500" />
+                    <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0 text-red-500">
+                      <Bot className="w-5 h-5" />
                     </div>
                   ) : null}
                   <div className={`max-w-[80%] p-3 rounded-2xl ${m.sender === 'user' ? 'bg-red-600 text-white rounded-br-none' : 'bg-stone-800 text-stone-200 rounded-bl-none'}`}>
@@ -132,8 +147,8 @@ export default function VoiceAgentWidget() {
 
               {assistantStreaming.trim() ? (
                 <div className="flex items-end gap-2 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-5 h-5 text-red-500" />
+                  <div className="w-8 h-8 rounded-full bg-red-600/20 flex items-center justify-center flex-shrink-0 text-red-500">
+                    <Bot className="w-5 h-5" />
                   </div>
                   <div className="max-w-[80%] p-3 rounded-2xl bg-stone-800 text-stone-200 rounded-bl-none border border-stone-600/60">
                     <p className="text-sm whitespace-pre-wrap">{assistantStreaming}</p>
@@ -141,44 +156,28 @@ export default function VoiceAgentWidget() {
                 </div>
               ) : null}
 
-              {isLoading && messages.length === 0 ? <div className="text-center text-stone-400 text-sm">Connecting...</div> : null}
-              {isError && error ? (
-                <div className="p-3 bg-red-900/50 border border-red-500/30 text-red-300 rounded-lg text-sm">{error}</div>
-              ) : null}
+                {error ? (
+                  <div className="p-3 bg-red-900/50 border border-red-500/30 text-red-300 rounded-lg text-sm">{error}</div>
+                ) : null}
               <div ref={messagesEndRef} />
             </div>
 
-            <footer className="p-4 border-t border-stone-700 flex-shrink-0 space-y-3">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type a message..."
-                  className="w-full px-4 py-2 bg-stone-800 border border-stone-700 rounded-full text-white placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all duration-300"
-                  disabled={!isConnected && !isError}
-                />
-                <button
-                  onClick={handleSendText}
-                  disabled={!textInput.trim() || (!isConnected && !isError)}
-                  className="bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 disabled:bg-stone-700 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
+            <footer className="p-4 border-t border-stone-700 flex-shrink-0 flex items-center justify-between gap-3">
+              <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-full border text-xs font-semibold ${statusTone}`}>
+                {statusIcon}
+                <span>{statusLabel}</span>
               </div>
-              <div className="flex flex-col items-center justify-center">
-                <button
-                  onClick={startSession}
-                  disabled={isLoading || isConnected}
-                  className="bg-red-600 text-white w-16 h-16 rounded-full flex items-center justify-center disabled:bg-stone-700"
-                >
-                  {isLoading ? <Loader className="w-8 h-8 animate-spin" /> : <Mic className="w-8 h-8" />}
-                </button>
-                <p className="text-xs text-stone-500 mt-2">
-                  {getFooterText()}
-                </p>
-              </div>
+              <button
+                onClick={startSession}
+                disabled={agentState === 'connecting' || agentState === 'listening' || agentState === 'speaking' || agentState === 'thinking'}
+                className="bg-red-600 text-white w-12 h-12 rounded-full flex items-center justify-center disabled:bg-stone-700"
+              >
+                {agentState === 'connecting' ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Mic className="w-5 h-5" />
+                )}
+              </button>
             </footer>
           </div>
         </div>
